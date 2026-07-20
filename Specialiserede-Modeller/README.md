@@ -6,6 +6,8 @@ neurale netværk — nu møder I seks specialiserede modeller, der hver især er
 noget bestemt.
 
 **Forudsætning:** Intro-ML-emnet (pandas, PyTorch, `nn.Module`, træningsrytmen).
+Emnekæden på campen: [Introduktion til programmering](../Intro-Programmering/) →
+regression → [Intro-ML](../Intro-ML/) → dette emne → [LLM-workshoppen](../LLM/).
 
 ## Notebooks — vælg en menu!
 

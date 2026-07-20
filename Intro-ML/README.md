@@ -2,8 +2,8 @@
 
 Dette er materialet til emnet **Intro til Machine Learning** på KIC26 — ca. 9 timers
 undervisning der dækker datamanipulation, PyTorch, neurale netværk og
-aktiveringsfunktioner. Emnet bygger direkte oven på *Introduktion til programmering*
-(variabler, if-sætninger, for-løkker, funktioner, numpy, matplotlib og klasser) og
+aktiveringsfunktioner. Emnet bygger direkte oven på [Introduktion til programmering](../Intro-Programmering/)
+(variabler, if-sætninger, for-løkker, funktioner, numpy, matplotlib, klasser og f-strings) og
 på regressionsemnet (lineær regression uden PyTorch).
 
 ## Notebooks (kør dem i rækkefølge)
