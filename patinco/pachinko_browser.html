@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pachinko simulator</title>
+<link rel="stylesheet" href="https://pyscript.net/releases/2025.8.1/core.css">
+<script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --bar: #2a78d6; --coin: #eb6834; --arrow: #1baf7a; --last: #e34948;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+    --bar: #3987e5; --coin: #d95926; --arrow: #199e70; --last: #e66767;
+  }
+}
+body { margin: 0; background: var(--page); color: var(--ink);
+       font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.app { max-width: 620px; margin: 24px auto; padding: 0 16px; }
+h1 { font-size: 1.15rem; font-weight: 600; margin: 0 0 2px; }
+.sub { color: var(--muted); font-size: .8rem; margin: 0 0 14px; }
+.card { background: var(--surface); border: 1px solid var(--border);
+        border-radius: 10px; padding: 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+            margin-bottom: 10px; }
+button { background: var(--surface); color: var(--ink);
+         border: 1px solid var(--border); border-radius: 7px;
+         padding: 6px 12px; font: inherit; font-size: .85rem; cursor: pointer; }
+button:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
+button:disabled { opacity: .4; cursor: default; }
+button.primary { border-color: var(--bar); }
+label.opt { display: inline-flex; gap: 5px; align-items: center;
+            font-size: .85rem; color: var(--ink-2); }
+.sep { flex: 0 0 1px; align-self: stretch; background: var(--border); }
+#status { min-height: 2.5em; font-size: .85rem; color: var(--ink-2);
+          margin: 2px 0 10px; }
+#status b { color: var(--ink); font-weight: 600; }
+canvas { display: block; width: 100%; height: auto; }
+.hint { color: var(--muted); font-size: .75rem; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Pachinko simulator</h1>
+  <p class="sub">10 rows of pegs — every bounce is a 50/50 left-or-right choice</p>
+  <div class="card">
+    <div class="controls">
+      <button id="drop" class="primary" disabled>Drop coin</button>
+      <button id="next" disabled>Next bounce</button>
+      <button id="finishb" disabled>Finish drop</button>
+      <button id="many" disabled>Drop 100</button>
+      <button id="reset" disabled>Reset</button>
+      <span class="sep"></span>
+      <label class="opt"><input type="radio" name="mode" id="mode-step" checked> Step</label>
+      <label class="opt"><input type="radio" name="mode" id="mode-auto"> Auto</label>
+      <span class="sep"></span>
+      <label class="opt"><input type="checkbox" id="pct" checked> Show %</label>
+      <label class="opt"><input type="checkbox" id="path"> Full path</label>
+      <label class="opt"><input type="checkbox" id="heat"> Heatmap</label>
+    </div>
+    <div id="status">Loading Python… the first visit downloads the PyScript runtime (needs internet), afterwards it is cached.</div>
+    <canvas id="board" width="560" height="660"></canvas>
+  </div>
+  <p class="hint">Step mode: <b>Space</b>/<b>N</b> or a click on the board = next bounce · <b>D</b> = drop a coin.</p>
+</div>
+
+<script type="py">
+# Pachinko simulator — all logic is Python, run in the browser by PyScript.
+# The Coin/PachinkoBoard model below mirrors pachinko.py in this folder.
+import math
+import random
+
+import js
+from pyodide.ffi import create_proxy, to_js
+from pyscript import document, when
+
+
+# ---------- core model (mirrors pachinko.py) ----------
+
+class Coin:
+    def __init__(self):
+        self.row = 0
+        self.k = 0
+        self.path = [(0, 0)]        # vertices (row, k) visited, apex first
+        self.landed = False
+        self.bin = None
+
+    @property
+    def last_vertex(self):
+        return self.path[-1]
+
+    @property
+    def last_move(self):
+        if len(self.path) < 2:
+            return None
+        return "R" if self.path[-1][1] > self.path[-2][1] else "L"
+
+
+class PachinkoBoard:
+    def __init__(self, rows=10, seed=None):
+        self.rows = rows
+        self.rng = random.Random(seed)
+        self.bins = [0] * (rows + 1)
+        self.coin = None
+        self.total = 0
+        # heatmap traffic: (row, k, dk) -> count of bounces (row,k)->(row+1,k+dk)
+        self.edge_counts = {}
+
+    def drop(self):
+        self.coin = Coin()
+        return self.coin
+
+    def bounce(self):
+        c = self.coin
+        if c is None or c.landed:
+            return None
+        go_right = self.rng.random() < 0.5
+        edge = (c.row, c.k, 1 if go_right else 0)
+        self.edge_counts[edge] = self.edge_counts.get(edge, 0) + 1
+        c.row += 1
+        if go_right:
+            c.k += 1
+        c.path.append((c.row, c.k))
+        if c.row == self.rows:
+            c.landed = True
+            c.bin = c.k
+            self.bins[c.k] += 1
+            self.total += 1
+        return "R" if go_right else "L"
+
+    def finish(self):
+        while self.coin is not None and not self.coin.landed:
+            self.bounce()
+        return self.coin
+
+    def drop_many(self, n=100):
+        for _ in range(n):
+            self.drop()
+            self.finish()
+        self.coin = None
+
+    def reset(self):
+        self.bins = [0] * (self.rows + 1)
+        self.coin = None
+        self.total = 0
+        self.edge_counts = {}
+
+    def bin_probability(self, k):
+        return math.comb(self.rows, k) / 2 ** self.rows
+
+    def next_options(self):
+        c = self.coin
+        if c is None or c.landed:
+            return None
+        return ((c.row + 1, c.k), (c.row + 1, c.k + 1))
+
+    @staticmethod
+    def vertex_xy(row, k):
+        return (k - row / 2.0, float(row))
+
+
+# ---------- geometry (pixel space) ----------
+
+ROWS = 10
+W, H = 560, 660
+CX, DX = 280, 46          # board centre x, horizontal peg spacing
+TOP, DY = 46, 42          # first peg row y, vertical peg spacing
+PEG_R, COIN_R = 5, 8
+BIN_TOP, BASE = 478, 604  # bin separators top / histogram baseline
+BAR_W, PCT_Y = 34, 624
+ANIM_FRAMES = 14          # frames per bounce animation (~0.45 s at 30 fps)
+HOP = 16                  # bounce arc height in px
+PAUSE_PCT, PAUSE_FAST = 12, 3
+
+# Sequential blue ramp for the edge heatmap (light -> dark = few -> many;
+# reversed on a dark surface so heavy traffic pops and light traffic recedes).
+SEQ = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7",
+       "#3987e5", "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281",
+       "#0d366b"]
+
+
+def vpx(row, k):
+    x, y = PachinkoBoard.vertex_xy(row, k)
+    return CX + x * DX, TOP + y * DY
+
+
+def rest_xy(row, k):
+    x, y = vpx(row, k)
+    return x, y - PEG_R - COIN_R + 1   # coin sitting on top of the peg
+
+
+# ---------- state ----------
+
+board = PachinkoBoard(ROWS)
+anim = None      # {"fx","fy","tx","ty","f"} while a bounce is animating
+waiting = False  # step mode: resting at a vertex, waiting for "Next bounce"
+pause = 0        # auto mode: frames to linger at a vertex (shows the arrows)
+
+canvas = document.getElementById("board")
+ctx = canvas.getContext("2d")
+
+dpr = js.window.devicePixelRatio or 1
+canvas.width = int(W * dpr)
+canvas.height = int(H * dpr)
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+HAS_ROUNDRECT = hasattr(ctx, "roundRect")
+
+COLOR_NAMES = ("surface", "ink", "ink-2", "muted", "grid", "baseline",
+               "bar", "coin", "arrow", "last")
+C = {}
+DARK = False
+
+
+def load_colors(*_):
+    global DARK
+    style = js.getComputedStyle(document.documentElement)
+    for name in COLOR_NAMES:
+        C[name] = style.getPropertyValue("--" + name).strip()
+    DARK = js.window.matchMedia("(prefers-color-scheme: dark)").matches
+
+
+def heat_color(t):
+    """Ramp color for normalized traffic t in [0, 1]."""
+    idx = round(t * (len(SEQ) - 1))
+    return SEQ[len(SEQ) - 1 - idx] if DARK else SEQ[idx]
+
+
+load_colors()
+js.window.matchMedia("(prefers-color-scheme: dark)").addEventListener(
+    "change", create_proxy(load_colors))
+
+
+def step_mode():
+    return document.getElementById("mode-step").checked
+
+
+def show_pct():
+    return document.getElementById("pct").checked
+
+
+def show_path():
+    return document.getElementById("path").checked
+
+
+def show_heat():
+    return document.getElementById("heat").checked
+
+
+def arrived_vertex():
+    """The vertex the coin last *arrived* at (mid-flight excludes the target)."""
+    c = board.coin
+    if c is None:
+        return None
+    return c.path[-2] if anim is not None else c.path[-1]
+
+
+def coin_xy():
+    c = board.coin
+    if c is None:
+        return None
+    if anim is not None:
+        t = anim["f"] / ANIM_FRAMES
+        x = anim["fx"] + (anim["tx"] - anim["fx"]) * t
+        y = (anim["fy"] + (anim["ty"] - anim["fy"]) * t
+             - HOP * math.sin(math.pi * t))
+        return x, y
+    return rest_xy(*c.last_vertex)
+
+
+# ---------- flow ----------
+
+def start_bounce():
+    global anim, waiting
+    c = board.coin
+    if c is None or c.landed:
+        return
+    frm = c.last_vertex
+    board.bounce()
+    fx, fy = rest_xy(*frm)
+    tx, ty = rest_xy(*c.last_vertex)
+    anim = {"fx": fx, "fy": fy, "tx": tx, "ty": ty, "f": 0}
+    waiting = False
+
+
+def tick():
+    global anim, waiting, pause
+    if anim is not None:
+        anim["f"] += 1
+        if anim["f"] >= ANIM_FRAMES:
+            anim = None
+            c = board.coin
+            if c is not None and not c.landed:
+                if step_mode():
+                    waiting = True
+                else:
+                    pause = PAUSE_PCT if show_pct() else PAUSE_FAST
+    elif pause > 0:
+        pause -= 1
+        if pause == 0:
+            start_bounce()
+    draw()
+    update_status()
+    update_buttons()
+
+
+# ---------- drawing ----------
+
+def circle(x, y, r, fill=None, stroke=None, lw=1.5):
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, 2 * math.pi)
+    if fill:
+        ctx.fillStyle = fill
+        ctx.fill()
+    if stroke:
+        ctx.strokeStyle = stroke
+        ctx.lineWidth = lw
+        ctx.stroke()
+
+
+def polyline(pts, color, lw, alpha=1.0):
+    if len(pts) < 2:
+        return
+    ctx.globalAlpha = alpha
+    ctx.strokeStyle = color
+    ctx.lineWidth = lw
+    ctx.lineJoin = "round"
+    ctx.lineCap = "round"
+    ctx.beginPath()
+    ctx.moveTo(pts[0][0], pts[0][1])
+    for x, y in pts[1:]:
+        ctx.lineTo(x, y)
+    ctx.stroke()
+    ctx.globalAlpha = 1.0
+
+
+def arrow(x1, y1, x2, y2, color):
+    dx, dy = x2 - x1, y2 - y1
+    length = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / length, dy / length
+    ctx.strokeStyle = color
+    ctx.fillStyle = color
+    ctx.lineWidth = 2
+    ctx.lineCap = "round"
+    ctx.beginPath()
+    ctx.moveTo(x1, y1)
+    ctx.lineTo(x2 - ux * 7, y2 - uy * 7)
+    ctx.stroke()
+    ctx.beginPath()                      # arrow head
+    ctx.moveTo(x2, y2)
+    ctx.lineTo(x2 - ux * 9 - uy * 4.5, y2 - uy * 9 + ux * 4.5)
+    ctx.lineTo(x2 - ux * 9 + uy * 4.5, y2 - uy * 9 - ux * 4.5)
+    ctx.closePath()
+    ctx.fill()
+
+
+def halo_text(text, x, y, color, font="12px system-ui, sans-serif",
+              align="center", baseline="middle"):
+    ctx.font = font
+    ctx.textAlign = align
+    ctx.textBaseline = baseline
+    ctx.strokeStyle = C["surface"]
+    ctx.lineWidth = 3
+    ctx.lineJoin = "round"
+    ctx.strokeText(text, x, y)
+    ctx.fillStyle = color
+    ctx.fillText(text, x, y)
+
+
+def draw():
+    ctx.fillStyle = C["surface"]
+    ctx.fillRect(0, 0, W, H)
+    c = board.coin
+
+    # heatmap of all edges travelled so far (drawn under everything else)
+    if show_heat():
+        if board.edge_counts:
+            peak_e = max(board.edge_counts.values())
+            for (r, k, dk), n in board.edge_counts.items():
+                t = (n / peak_e) ** 0.5      # sqrt keeps rare edges visible
+                polyline([vpx(r, k), vpx(r + 1, k + dk)],
+                         heat_color(t), 1.5 + 3.0 * t)
+        # few <-> many legend, top-left corner
+        lx, ly, lw_, lh = 62, 60, 72, 8
+        for i in range(len(SEQ)):
+            ctx.fillStyle = heat_color(i / (len(SEQ) - 1))
+            ctx.fillRect(lx + lw_ * i / len(SEQ), ly, lw_ / len(SEQ) + 0.5, lh)
+        halo_text("few", lx - 6, ly + lh / 2, C["muted"],
+                  font="10px system-ui, sans-serif", align="right")
+        halo_text("many", lx + lw_ + 6, ly + lh / 2, C["muted"],
+                  font="10px system-ui, sans-serif", align="left")
+
+    # pegs
+    for r in range(ROWS):
+        for k in range(r + 1):
+            x, y = vpx(r, k)
+            circle(x, y, PEG_R, fill=C["muted"])
+
+    # last edge in red; the full travelled path only when toggled on
+    if c is not None:
+        done = [vpx(*v) for v in (c.path[:-1] if anim is not None else c.path)]
+        if show_path():
+            polyline(done, C["coin"], 2, alpha=0.55)
+        pos = coin_xy()
+        if anim is not None:
+            polyline([done[-1], pos], C["last"], 2.5)
+        elif len(done) >= 2:
+            polyline(done[-2:], C["last"], 2.5)
+
+        # last-vertex highlight ring
+        lx, ly = vpx(*arrived_vertex())
+        circle(lx, ly, PEG_R + 5, stroke=C["last"], lw=2)
+
+    # 50/50 arrows at the decision point (coin resting on a peg)
+    if (c is not None and not c.landed and anim is None and show_pct()):
+        cx0, cy0 = vpx(*c.last_vertex)
+        for (nr, nk), side in zip(board.next_options(), (-1, 1)):
+            tx, ty = vpx(nr, nk)
+            arrow(cx0 + 7 * side, cy0 + 9, tx - 4 * side, ty - PEG_R - 9,
+                  C["arrow"])
+            halo_text("50%", (cx0 + tx) / 2 + 20 * side, (cy0 + ty) / 2 - 2,
+                      C["ink"], align="right" if side < 0 else "left")
+
+    # coin on top
+    if c is not None:
+        x, y = coin_xy()
+        circle(x, y, COIN_R, fill=C["coin"], stroke=C["ink"], lw=1)
+
+    # bins: separators, baseline
+    ctx.strokeStyle = C["grid"]
+    ctx.lineWidth = 1
+    for i in range(ROWS + 2):
+        x = CX + (i - 0.5 - ROWS / 2.0) * DX
+        ctx.beginPath()
+        ctx.moveTo(x, BIN_TOP)
+        ctx.lineTo(x, BASE)
+        ctx.stroke()
+    ctx.strokeStyle = C["baseline"]
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(CX - (ROWS / 2.0 + 0.5) * DX, BASE)
+    ctx.lineTo(CX + (ROWS / 2.0 + 0.5) * DX, BASE)
+    ctx.stroke()
+
+    # histogram (the coin still falling into its bin is not counted yet)
+    shown = list(board.bins)
+    if c is not None and c.landed and anim is not None:
+        shown[c.bin] -= 1
+    peak = max(shown) or 1
+    max_h = BASE - BIN_TOP - 30
+    for k, count in enumerate(shown):
+        x, _ = vpx(ROWS, k)
+        if count:
+            h = max(3, max_h * count / peak)
+            ctx.fillStyle = C["bar"]
+            ctx.beginPath()
+            if HAS_ROUNDRECT:
+                ctx.roundRect(x - BAR_W / 2, BASE - h, BAR_W, h,
+                              to_js([4, 4, 0, 0]))
+            else:
+                ctx.rect(x - BAR_W / 2, BASE - h, BAR_W, h)
+            ctx.fill()
+            halo_text(str(count), x, BASE - h - 9, C["ink-2"],
+                      font="11px system-ui, sans-serif")
+        if show_pct():
+            halo_text(f"{board.bin_probability(k):.1%}", x, PCT_Y, C["muted"],
+                      font="10px system-ui, sans-serif")
+
+
+# ---------- status line & buttons ----------
+
+_last_status = None
+
+
+def update_status():
+    global _last_status
+    c = board.coin
+    if c is None:
+        s = f"Drop a coin to start · <b>{board.total}</b> dropped so far"
+    elif anim is not None:
+        word = "left" if c.last_move == "L" else "right"
+        arrow_ch = "←" if c.last_move == "L" else "→"
+        s = (f"Bounce <b>{c.row}/{ROWS}</b> — bouncing {arrow_ch} {word}… · "
+             f"<b>{board.total}</b> dropped")
+    elif c.landed:
+        s = (f"Landed in <b>bin {c.bin}</b> — expected share "
+             f"{board.bin_probability(c.bin):.1%} · <b>{board.total}</b> dropped")
+    else:
+        r, k = c.last_vertex
+        if c.last_move is None:
+            where = "on the apex peg"
+        else:
+            arrow_ch = "←" if c.last_move == "L" else "→"
+            where = f"last move {arrow_ch} — at vertex <b>(row {r}, pos {k})</b>"
+        nxt = " · next: ← 50% | 50% →" if show_pct() else ""
+        s = f"Bounce <b>{r}/{ROWS}</b> · {where}{nxt}"
+    if s != _last_status:
+        document.getElementById("status").innerHTML = s
+        _last_status = s
+
+
+def update_buttons():
+    c = board.coin
+    in_flight = c is not None and not c.landed
+    document.getElementById("next").disabled = not waiting
+    document.getElementById("finishb").disabled = not in_flight
+
+
+# ---------- controls ----------
+
+@when("click", "#drop")
+def on_drop(event=None):
+    global anim, waiting, pause
+    if board.coin is not None and not board.coin.landed:
+        board.finish()
+    board.drop()
+    anim = None
+    if step_mode():
+        waiting, pause = True, 0
+    else:
+        waiting, pause = False, (PAUSE_PCT if show_pct() else 1)
+
+
+@when("click", "#next")
+def on_next(event=None):
+    if waiting:
+        start_bounce()
+
+
+@when("click", "#board")
+def on_canvas(event=None):
+    if waiting:
+        start_bounce()
+
+
+@when("click", "#finishb")
+def on_finish(event=None):
+    global anim, waiting, pause
+    board.finish()
+    anim, waiting, pause = None, False, 0
+
+
+@when("click", "#many")
+def on_many(event=None):
+    global anim, waiting, pause
+    if board.coin is not None and not board.coin.landed:
+        board.finish()
+    board.drop_many(100)
+    anim, waiting, pause = None, False, 0
+
+
+@when("click", "#reset")
+def on_reset(event=None):
+    global anim, waiting, pause
+    board.reset()
+    anim, waiting, pause = None, False, 0
+
+
+@when("change", "#mode-auto")
+def on_auto(event=None):
+    global waiting, pause
+    if waiting:                      # resume the coin automatically
+        waiting, pause = False, 1
+
+
+@when("change", "#mode-step")
+def on_step_mode(event=None):
+    global waiting, pause
+    if pause > 0:                    # halt an auto-running coin at its vertex
+        waiting, pause = True, 0
+
+
+def on_key(event):
+    if event.key in (" ", "n", "N"):
+        event.preventDefault()
+        if waiting:
+            start_bounce()
+    elif event.key in ("d", "D"):
+        on_drop()
+
+
+document.addEventListener("keydown", create_proxy(on_key))
+
+# ---------- go ----------
+
+for bid in ("drop", "next", "finishb", "many", "reset"):
+    document.getElementById(bid).disabled = False
+document.getElementById("status").innerHTML = (
+    "Ready — press <b>Drop coin</b>, then step through with <b>Next bounce</b>.")
+draw()
+update_buttons()
+js.setInterval(create_proxy(lambda *args: tick()), 33)
+</script>
+</body>
+</html>

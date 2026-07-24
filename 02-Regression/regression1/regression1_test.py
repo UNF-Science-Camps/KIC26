@@ -1,7 +1,7 @@
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'utilities'))
 try:
-    import sesy_vizualisation as _viz
+    import helpers as _viz
 except ImportError:
     _viz = None
 

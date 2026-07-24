@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markov-kæder — hvordan næste ord vælges</title>
+<style>
+  :root{
+    color-scheme: light;
+    --plane:#f9f9f7; --surface:#fcfcfb;
+    --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --hairline:#e1e0d9; --border:rgba(11,11,11,.10);
+    --node:#ffffff; --node-stroke:#c3c2b7;
+    --cur:#2a78d6;            /* nuværende ord (blå) */
+    --chosen:#eb6834;         /* valgt næste ord (orange) */
+    --cand:#86b6ef;           /* mulige næste ord (lys blå) */
+    --cur-wash:#eaf2fc; --chosen-wash:#fdeee6;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
+      --plane:#0d0d0d; --surface:#1a1a19;
+      --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+      --hairline:#2c2c2a; --border:rgba(255,255,255,.10);
+      --node:#232321; --node-stroke:#383835;
+      --cur:#3987e5; --chosen:#d95926; --cand:#3f6ea3;
+      --cur-wash:#12233a; --chosen-wash:#3a2013;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --plane:#0d0d0d; --surface:#1a1a19;
+    --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --hairline:#2c2c2a; --border:rgba(255,255,255,.10);
+    --node:#232321; --node-stroke:#383835;
+    --cur:#3987e5; --chosen:#d95926; --cand:#3f6ea3;
+    --cur-wash:#12233a; --chosen-wash:#3a2013;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--plane); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    line-height:1.5; padding:24px 16px 48px;
+  }
+  .wrap{max-width:980px; margin:0 auto}
+  h1{font-size:1.5rem; margin:0 0 4px}
+  .lede{color:var(--ink2); margin:0 0 20px; max-width:64ch}
+  .lede b{color:var(--ink)}
+
+  .card{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:16px; margin-bottom:16px;
+  }
+
+  /* ── kontroller ── */
+  .row{display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center}
+  label.f{display:flex; flex-direction:column; gap:4px; font-size:.82rem; color:var(--ink2)}
+  label.f .v{color:var(--ink); font-variant-numeric:tabular-nums; font-weight:600}
+  textarea{
+    width:100%; min-height:88px; resize:vertical; margin-bottom:10px;
+    font:inherit; font-size:.92rem; color:var(--ink);
+    background:var(--plane); border:1px solid var(--border);
+    border-radius:10px; padding:10px 12px;
+  }
+  button{
+    font:inherit; font-size:.9rem; font-weight:600; color:var(--ink);
+    background:var(--plane); border:1px solid var(--node-stroke);
+    border-radius:9px; padding:8px 14px; cursor:pointer;
+  }
+  button:hover{border-color:var(--cur)}
+  button.primary{background:var(--cur); color:#fff; border-color:var(--cur)}
+  button:disabled{opacity:.45; cursor:default; border-color:var(--node-stroke)}
+  select{
+    font:inherit; font-size:.9rem; color:var(--ink);
+    background:var(--plane); border:1px solid var(--node-stroke);
+    border-radius:9px; padding:7px 10px;
+  }
+  input[type=range]{accent-color:var(--cur); width:150px}
+
+  .legend{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:.85rem;
+          color:var(--ink2); margin-top:12px}
+  .legend .dot{display:inline-block; width:11px; height:11px; border-radius:3px;
+               margin-right:6px; vertical-align:middle}
+  .legend .ln{display:inline-block; width:22px; height:0; margin-right:6px;
+              vertical-align:middle; border-top-style:solid}
+
+  /* ── graf ── */
+  .stage{position:relative}
+  svg{width:100%; height:auto; display:block; touch-action:none}
+  .status{font-size:.9rem; color:var(--ink2); margin:2px 2px 10px; min-height:1.4em}
+  .status b{color:var(--ink)}
+
+  .node rect{fill:var(--node); stroke:var(--node-stroke); stroke-width:1.4;
+             transition:fill .3s ease, stroke .3s ease, stroke-width .3s ease}
+  .node text{fill:var(--ink2); font-size:14px; font-weight:600;
+             dominant-baseline:middle; text-anchor:middle; pointer-events:none;
+             transition:fill .3s ease}
+  .node.current rect{fill:var(--cur-wash); stroke:var(--cur); stroke-width:2.4}
+  .node.current text{fill:var(--cur)}
+  .node.chosen rect{fill:var(--chosen-wash); stroke:var(--chosen); stroke-width:2.4}
+  .node.chosen text{fill:var(--chosen)}
+  .node.dim rect{opacity:.5}
+  .node.dim text{opacity:.5}
+
+  .edge{fill:none; stroke:var(--cand);
+        opacity:0; stroke-linecap:round;
+        transition:opacity .35s ease, stroke .35s ease, stroke-width .35s ease}
+  .edge.show{opacity:.9}
+  .edge.chosen{stroke:var(--chosen)}
+  .elabel{font-size:11px; font-weight:700; fill:var(--ink2);
+          text-anchor:middle; dominant-baseline:middle;
+          opacity:0; transition:opacity .35s ease; pointer-events:none;
+          font-variant-numeric:tabular-nums}
+  .elabel.show{opacity:1}
+  .elabel.chosen{fill:var(--chosen)}
+  .elabel-bg{fill:var(--surface); opacity:0; transition:opacity .35s ease}
+  .elabel-bg.show{opacity:.92}
+
+  /* ── genereret tekst ── */
+  .band{font-size:1.15rem; line-height:1.8; min-height:2.2em}
+  .band .w{padding:1px 2px}
+  .band .last{color:var(--chosen); font-weight:700}
+  .band .caret{color:var(--muted)}
+  .steps{float:right; font-size:.9rem; color:var(--ink2);
+         font-variant-numeric:tabular-nums}
+
+  .note{font-size:.85rem; color:var(--ink2)}
+  .note code{background:var(--plane); border:1px solid var(--border);
+             border-radius:5px; padding:1px 5px; font-size:.85em}
+
+  /* ── tooltip ── */
+  #tip{position:fixed; z-index:9; pointer-events:none; opacity:0;
+       transform:translateY(-4px); transition:opacity .12s ease;
+       background:var(--ink); color:var(--surface);
+       font-size:.8rem; line-height:1.35; padding:7px 9px; border-radius:8px;
+       max-width:240px; box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  #tip .th{font-weight:700; margin-bottom:2px}
+  #tip .tr{display:flex; justify-content:space-between; gap:14px}
+  #tip .tr .p{font-variant-numeric:tabular-nums; opacity:.85}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Markov-kæder — hvordan næste ord vælges</h1>
+  <p class="lede">En Markov-kæde gætter det næste ord ud fra det nuværende. Hver linje er
+  en mulig vej videre — <b>jo tykkere linje, jo mere sandsynligt</b> er ordet. Det
+  <b style="color:var(--cur)">nuværende ord</b> er blåt, det <b style="color:var(--chosen)">valgte
+  næste ord</b> orange. Tryk <b>Afspil</b> og følg teksten vokse nederst, ét ord ad gangen.</p>
+
+  <div class="card">
+    <textarea id="tekst" spellcheck="false" aria-label="Træningstekst"></textarea>
+    <div class="row">
+      <button id="byg">Byg kæde igen</button>
+      <label class="f">Start-ord
+        <select id="start"></select>
+      </label>
+      <label class="f">Fart <span class="v" id="fartV"></span>
+        <input type="range" id="fart" min="400" max="2600" step="100" value="1200">
+      </label>
+      <label class="f">Temperatur <span class="v" id="tempV"></span>
+        <input type="range" id="temp" min="0" max="2" step="0.1" value="1">
+      </label>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--cur)"></span>nuværende ord</span>
+      <span><span class="dot" style="background:var(--chosen)"></span>valgt næste ord</span>
+      <span><span class="ln" style="border-top-width:2px; border-color:var(--cand)"></span>mulig vej (tynd = lille sandsynlighed)</span>
+      <span><span class="ln" style="border-top-width:5px; border-color:var(--chosen)"></span>den valgte vej</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="margin-bottom:12px">
+      <button id="play" class="primary">▶ Afspil</button>
+      <button id="step">⏭ +1 skridt</button>
+      <button id="reset">⟲ Nulstil</button>
+      <button id="fro">🎲 Nyt frø</button>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="stage">
+      <svg id="graf" xmlns="http://www.w3.org/2000/svg" role="img"
+           aria-label="Ord i et gitter med linjer til mulige næste ord"></svg>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="steps" id="steps">Skridt 0 / 10</div>
+    <div class="band" id="band"></div>
+  </div>
+
+  <p class="note">Prøv selv: skift teksten i feltet og tryk <code>Byg kæde igen</code>.
+  Skru på <code>Temperatur</code> — <b>0</b> vælger altid det mest sandsynlige ord,
+  <b>1</b> er den ægte Markov-sandsynlighed (hyppighed ÷ antal), <b>2</b> er helt tilfældigt.
+  <code>Nyt frø</code> giver de tilfældige valg en ny omgang.</p>
+</div>
+
+<div id="tip"></div>
+
+<script>
+"use strict";
+const SKRIDT_MAX = 10;
+const DEMO =
+`jeg vil fange en pikachu
+jeg vil fange en bulbasaur
+jeg vil træne hver dag
+jeg kan lide at træne
+jeg kan lide at fange
+jeg kan godt lide pikachu
+en pikachu er gul
+en bulbasaur er grøn`;
+
+/* ── Markov-logik (samme idé som helpers.py) ── */
+function tokeniser(t){
+  return t.toLowerCase().split(/[^0-9a-zà-ÿ]+/).filter(Boolean);
+}
+function bygKaede(tokens){
+  const chain = {};
+  for(let i=0; i<tokens.length-1; i++){
+    const w = tokens[i], nx = tokens[i+1];
+    if(!chain[w]) chain[w] = {total:0, next:{}};
+    chain[w].total++;
+    chain[w].next[nx] = (chain[w].next[nx]||0) + 1;
+  }
+  const sidste = tokens[tokens.length-1];
+  if(sidste && !chain[sidste]) chain[sidste] = {total:0, next:{}};
+  return chain;
+}
+// Sandsynligheder med temperatur. 0 = deterministisk (argmax), 1 = hyppighed/total, 2 = ensartet.
+function fordeling(nextObj, temp){
+  const ord = Object.keys(nextObj);
+  if(ord.length === 0) return [];
+  const total = ord.reduce((s,w)=>s+nextObj[w], 0);
+  const basis = ord.map(w => nextObj[w]/total);          // temp = 1
+  const k = ord.length;
+  let p;
+  if(temp <= 1){
+    const maxv = Math.max(...basis);
+    const maxi = basis.indexOf(maxv);
+    p = basis.map((b,i) => temp*b + (1-temp)*(i===maxi ? 1 : 0));
+  } else {
+    const u = 1/k, f = temp-1;
+    p = basis.map(b => (1-f)*b + f*u);
+  }
+  const s = p.reduce((a,b)=>a+b, 0) || 1;
+  return ord.map((w,i) => ({ord:w, p:p[i]/s})).sort((a,b)=>b.p-a.p);
+}
+// lille deterministisk tilfældighedsgenerator (så "Afspil" er reproducerbar)
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a>>>15, 1 | a);
+    t = t + Math.imul(t ^ t>>>7, 61 | t) ^ t;
+    return ((t ^ t>>>14) >>> 0) / 4294967296;
+  };
+}
+function vaelg(dist, rng){
+  const r = rng();
+  let sum = 0;
+  for(const d of dist){ sum += d.p; if(r <= sum) return d.ord; }
+  return dist[dist.length-1].ord;
+}
+
+/* ── layout ── */
+const NS = "http://www.w3.org/2000/svg";
+const CELL_W = 152, CELL_H = 96, NODE_W = 118, NODE_H = 44, PAD = 26;
+let chain, ord2pos = {}, cols, rows, svgW, svgH;
+
+function byg(){
+  const tokens = tokeniser(document.getElementById("tekst").value);
+  chain = bygKaede(tokens);
+  const ord = Object.keys(chain).sort((a,b) =>
+      (chain[b].total - chain[a].total) || a.localeCompare(b, "da"));
+  cols = Math.max(1, Math.ceil(Math.sqrt(ord.length)));
+  rows = Math.ceil(ord.length / cols);
+  svgW = PAD*2 + cols*CELL_W;
+  svgH = PAD*2 + rows*CELL_H;
+  ord2pos = {};
+  ord.forEach((w,i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    ord2pos[w] = { x: PAD + c*CELL_W + CELL_W/2, y: PAD + r*CELL_H + CELL_H/2 };
+  });
+  tegnGitter(ord);
+  fyldStart(ord);
+  nulstil();
+}
+
+let gEdges, gNodes;
+function tegnGitter(ord){
+  const svg = document.getElementById("graf");
+  svg.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
+  svg.style.maxWidth = svgW + "px";
+  svg.innerHTML = "";
+  gEdges = document.createElementNS(NS, "g");   // linjer under noder
+  gNodes = document.createElementNS(NS, "g");
+  svg.appendChild(gEdges); svg.appendChild(gNodes);
+
+  for(const w of ord){
+    const p = ord2pos[w];
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "node");
+    g.dataset.ord = w;
+    const rect = document.createElementNS(NS, "rect");
+    rect.setAttribute("x", p.x - NODE_W/2); rect.setAttribute("y", p.y - NODE_H/2);
+    rect.setAttribute("width", NODE_W); rect.setAttribute("height", NODE_H);
+    rect.setAttribute("rx", 9);
+    const tx = document.createElementNS(NS, "text");
+    tx.setAttribute("x", p.x); tx.setAttribute("y", p.y + 1);
+    tx.textContent = w;
+    g.appendChild(rect); g.appendChild(tx);
+    g.addEventListener("mouseenter", e => nodeTip(e, w));
+    g.addEventListener("mousemove", flytTip);
+    g.addEventListener("mouseleave", skjulTip);
+    gNodes.appendChild(g);
+  }
+}
+
+// klip linjens endepunkt til en boks-kant, så pilen ikke gemmer sig under noden
+function klip(fra, mod){
+  const dx = fra.x - mod.x, dy = fra.y - mod.y;
+  const sx = dx ? (NODE_W/2 + 4)/Math.abs(dx) : Infinity;
+  const sy = dy ? (NODE_H/2 + 4)/Math.abs(dy) : Infinity;
+  const s = Math.min(sx, sy, 1);
+  return { x: mod.x + dx*s, y: mod.y + dy*s };
+}
+
+/* ── tilstand + animation ── */
+let cur, valgtNaeste, genereret, skridt, frø, rng, revealTimer, playTimer, spiller;
+
+function setStart(w){
+  cur = w; genereret = [w]; skridt = 0;
+  rng = mulberry32(frø);
+  render();
+  opdaterTekst();
+}
+function nulstil(){
+  frø = 42;
+  const startSel = document.getElementById("start").value;
+  stopPlay();
+  setStart(startSel || cur);
+}
+
+function render(){
+  clearTimeout(revealTimer);
+  gEdges.innerHTML = "";
+  for(const g of gNodes.children) g.classList.remove("current","chosen","dim");
+  const curG = [...gNodes.children].find(g => g.dataset.ord === cur);
+  if(curG) curG.classList.add("current");
+
+  const dist = fordeling(chain[cur] ? chain[cur].next : {}, temp());
+  if(dist.length === 0){
+    valgtNaeste = null;
+    setStatus(`<b>${cur}</b> har ingen næste ord — blindgyde.`);
+    return;
+  }
+  valgtNaeste = (skridt < SKRIDT_MAX) ? vaelg(dist, rng) : null;
+
+  const from = ord2pos[cur];
+  for(const d of dist){
+    const to = ord2pos[d.ord];
+    if(!to) continue;
+    const a = klip(to, from), b = klip(from, to);   // start- og slut-kant
+    const w = 1.5 + d.p * 12;                        // tykkelse = sandsynlighed
+    const line = document.createElementNS(NS, "line");
+    line.setAttribute("x1", a.x); line.setAttribute("y1", a.y);
+    line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
+    line.setAttribute("class", "edge");
+    line.setAttribute("stroke-width", w.toFixed(2));
+    line.dataset.ord = d.ord; line.dataset.p = d.p;
+    line.addEventListener("mouseenter", e => edgeTip(e, cur, d.ord, d.p));
+    line.addEventListener("mousemove", flytTip);
+    line.addEventListener("mouseleave", skjulTip);
+    gEdges.appendChild(line);
+
+    // procent-mærkat nær enden af linjen
+    const mx = a.x + (b.x-a.x)*0.62, my = a.y + (b.y-a.y)*0.62;
+    const bg = document.createElementNS(NS, "rect");
+    const label = Math.round(d.p*100) + "%";
+    const wpx = label.length*7 + 8;
+    bg.setAttribute("x", mx - wpx/2); bg.setAttribute("y", my - 9);
+    bg.setAttribute("width", wpx); bg.setAttribute("height", 16);
+    bg.setAttribute("rx", 5); bg.setAttribute("class", "elabel-bg");
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", mx); t.setAttribute("y", my + 1);
+    t.setAttribute("class", "elabel"); t.textContent = label;
+    t.dataset.ord = d.ord; bg.dataset.ord = d.ord;
+    gEdges.appendChild(bg); gEdges.appendChild(t);
+  }
+
+  // fade linjer ind
+  requestAnimationFrame(() => {
+    for(const el of gEdges.children) el.classList.add("show");
+  });
+  setStatus(`<b>${cur}</b> — ${dist.length} mulige næste ord.`);
+
+  // efter en pause: fremhæv det valgte
+  if(valgtNaeste){
+    revealTimer = setTimeout(() => {
+      const to = ord2pos[valgtNaeste];
+      for(const el of gEdges.children){
+        if(el.dataset.ord === valgtNaeste) el.classList.add("chosen");
+      }
+      const g = [...gNodes.children].find(n => n.dataset.ord === valgtNaeste);
+      if(g && valgtNaeste !== cur) g.classList.add("chosen");
+      const pv = fordeling(chain[cur].next, temp()).find(d=>d.ord===valgtNaeste);
+      setStatus(`<b>${cur}</b> vælger <b style="color:var(--chosen)">${valgtNaeste}</b>` +
+                ` (${Math.round((pv?pv.p:0)*100)}%).`);
+    }, Math.max(220, fart()*0.45));
+  }
+}
+
+function fremad(){
+  clearTimeout(revealTimer);
+  if(skridt >= SKRIDT_MAX || !valgtNaeste){ stopPlay(); return false; }
+  genereret.push(valgtNaeste);
+  cur = valgtNaeste; skridt++;
+  opdaterTekst(); render();
+  if(skridt >= SKRIDT_MAX || !valgtNaeste){ stopPlay(); }
+  return true;
+}
+
+function opdaterTekst(){
+  const band = document.getElementById("band");
+  band.innerHTML = genereret.map((w,i) =>
+    `<span class="w${i===genereret.length-1 && i>0 ? ' last':''}">${w}</span>`).join(" ") +
+    (skridt < SKRIDT_MAX && valgtNaeste ? ' <span class="caret">▏</span>' : '');
+  document.getElementById("steps").textContent = `Skridt ${skridt} / ${SKRIDT_MAX}`;
+}
+
+/* ── afspilning ── */
+function playTick(){
+  if(!spiller) return;
+  const ok = fremad();
+  if(ok && spiller && skridt < SKRIDT_MAX && valgtNaeste){
+    playTimer = setTimeout(playTick, fart());
+  } else {
+    stopPlay();
+  }
+}
+function startPlay(){
+  if(skridt >= SKRIDT_MAX || !valgtNaeste){ nulstil(); }
+  spiller = true;
+  document.getElementById("play").innerHTML = "⏸ Pause";
+  playTimer = setTimeout(playTick, Math.max(320, fart()*0.6));
+}
+function stopPlay(){
+  spiller = false; clearTimeout(playTimer);
+  const b = document.getElementById("play");
+  if(b) b.innerHTML = "▶ Afspil";
+}
+
+/* ── småting ── */
+const fart = () => +document.getElementById("fart").value;
+const temp = () => +document.getElementById("temp").value;
+function setStatus(html){ document.getElementById("status").innerHTML = html; }
+function fyldStart(ord){
+  const sel = document.getElementById("start");
+  const nu = sel.value;
+  sel.innerHTML = ord.map(w => `<option>${w}</option>`).join("");
+  if(ord.includes("jeg")) sel.value = "jeg";
+  else if(ord.includes(nu)) sel.value = nu;
+}
+
+/* ── tooltip ── */
+const tip = document.getElementById("tip");
+function nodeTip(e, w){
+  const dist = fordeling(chain[w] ? chain[w].next : {}, temp());
+  let html = `<div class="th">${w} →</div>`;
+  if(dist.length === 0) html += `<div class="tr">blindgyde</div>`;
+  else html += dist.map(d =>
+    `<div class="tr"><span>${d.ord}</span><span class="p">${Math.round(d.p*100)}%</span></div>`).join("");
+  tip.innerHTML = html; visTip(e);
+}
+function edgeTip(e, fra, til, p){
+  tip.innerHTML = `<div class="th">${fra} → ${til}</div>` +
+                  `<div class="tr"><span>sandsynlighed</span><span class="p">${Math.round(p*100)}%</span></div>`;
+  visTip(e);
+}
+function visTip(e){ tip.style.opacity = 1; flytTip(e); }
+function flytTip(e){
+  const pad = 14;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  const r = tip.getBoundingClientRect();
+  if(x + r.width > innerWidth) x = e.clientX - r.width - pad;
+  if(y + r.height > innerHeight) y = e.clientY - r.height - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function skjulTip(){ tip.style.opacity = 0; }
+
+/* ── begivenheder ── */
+document.getElementById("tekst").value = DEMO;
+document.getElementById("byg").addEventListener("click", byg);
+document.getElementById("play").addEventListener("click", () => spiller ? stopPlay() : startPlay());
+document.getElementById("step").addEventListener("click", () => { stopPlay(); fremad(); });
+document.getElementById("reset").addEventListener("click", nulstil);
+document.getElementById("fro").addEventListener("click", () => {
+  stopPlay(); frø = (frø * 1664525 + 1013904223) >>> 0; setStart(document.getElementById("start").value);
+});
+document.getElementById("start").addEventListener("change", () => { stopPlay(); nulstil(); });
+document.getElementById("temp").addEventListener("input", () => {
+  document.getElementById("tempV").textContent = temp().toFixed(1);
+  stopPlay(); setStart(cur = document.getElementById("start").value);
+});
+document.getElementById("fart").addEventListener("input", () => {
+  document.getElementById("fartV").textContent = (fart()/1000).toFixed(1) + " s";
+});
+
+document.getElementById("tempV").textContent = temp().toFixed(1);
+document.getElementById("fartV").textContent = (fart()/1000).toFixed(1) + " s";
+byg();
+</script>
+</body>
+</html>
