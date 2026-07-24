@@ -1,5 +1,5 @@
 import os, sys
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'utilities'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '98-Helpers'))
 try:
     import helpers as _viz
 except ImportError:
@@ -23,7 +23,7 @@ def _ok(name):
 
 # ── opg 1 ─────────────────────────────────────────────────────────────────
 
-def testopg1_1(func):
+def test_ex1_1(func):
     """(0,0) og (x,y) → linje a·x+b, dvs. a=y/x, b=0"""
     name = "opg1_1"
     cases = [
@@ -39,11 +39,11 @@ def testopg1_1(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             x, y = inp
-            if _viz: _viz.feedback_kurve([(0, 0), (x, y)], got, exp)
+            if _viz: _viz.feedback_curve([(0, 0), (x, y)], got, exp)
             return
     _ok(name)
 
-def testopg1_2(func):
+def test_ex1_2(func):
     """(x1,y1) og (x2,y2) → linje a·x+b"""
     name = "opg1_2"
     cases = [
@@ -59,11 +59,11 @@ def testopg1_2(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             x1,y1,x2,y2 = inp
-            if _viz: _viz.feedback_kurve([(x1,y1),(x2,y2)], got, exp)
+            if _viz: _viz.feedback_curve([(x1,y1),(x2,y2)], got, exp)
             return
     _ok(name)
 
-def testopg1_3(func):
+def test_ex1_3(func):
     """(x1,y1),(x2,y2),(x3,y3) → parabel a·x²+b·x+c"""
     name = "opg1_3"
     cases = [
@@ -80,13 +80,13 @@ def testopg1_3(func):
             _fail(name, inp, got, exp)
             print("  Hint: sæt 3 ligninger op — én per punkt: y = a·x²+b·x+c — og løs for a, b og c.")
             x1,y1,x2,y2,x3,y3 = inp
-            if _viz: _viz.feedback_kurve([(x1,y1),(x2,y2),(x3,y3)], got, exp)
+            if _viz: _viz.feedback_curve([(x1,y1),(x2,y2),(x3,y3)], got, exp)
             return
     _ok(name)
 
 # ── opg 2 ─────────────────────────────────────────────────────────────────
 
-def testopg2_1(func):
+def test_ex2_1(func):
     """(0,0) og punktet punkter[0] → linje a·x+b (punkt-udgave af opg1_1)"""
     name = "opg2_1"
     cases = [
@@ -102,11 +102,11 @@ def testopg2_1(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             x, y = inp[0]
-            if _viz: _viz.feedback_kurve([(0, 0), (x, y)], got, exp)
+            if _viz: _viz.feedback_curve([(0, 0), (x, y)], got, exp)
             return
     _ok(name)
 
-def testopg2_2(func):
+def test_ex2_2(func):
     """2 punkter → linje (kalder opg1_2 internt)"""
     name = "opg2_2"
     cases = [
@@ -121,11 +121,11 @@ def testopg2_2(func):
         got = func(inp)
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
-            if _viz: _viz.feedback_kurve(inp, got, exp)
+            if _viz: _viz.feedback_curve(inp, got, exp)
             return
     _ok(name)
 
-def testopg2_3(func):
+def test_ex2_3(func):
     """3 punkter → parabel"""
     name = "opg2_3"
     cases = [
@@ -141,13 +141,13 @@ def testopg2_3(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             print("  Hint: pak punkterne ud og kald opg1_3 — samme fremgangsmåde.")
-            if _viz: _viz.feedback_kurve(inp, got, exp)
+            if _viz: _viz.feedback_curve(inp, got, exp)
             return
     _ok(name)
 
 # ── opg 3 ─────────────────────────────────────────────────────────────────
 
-def testopg3_1(func):
+def test_ex3_1(func):
     """SSE for præcis 3 punkter, linje a·x+b"""
     name = "opg3_1"
     cases = [
@@ -162,12 +162,12 @@ def testopg3_1(func):
         got = func(*inp)
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
-            a, b, punkter = inp
-            if _viz: _viz.feedback_loss((a, b), punkter, got, exp)
+            a, b, points = inp
+            if _viz: _viz.feedback_loss((a, b), points, got, exp)
             return
     _ok(name)
 
-def testopg3_2(func):
+def test_ex3_2(func):
     """SSE for n punkter, linje a·x+b"""
     name = "opg3_2"
     cases = [
@@ -182,12 +182,12 @@ def testopg3_2(func):
         got = func(*inp)
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
-            a, b, punkter = inp
-            if _viz: _viz.feedback_loss((a, b), punkter, got, exp)
+            a, b, points = inp
+            if _viz: _viz.feedback_loss((a, b), points, got, exp)
             return
     _ok(name)
 
-def testopg3_3(func):
+def test_ex3_3(func):
     """SSE for n punkter, parabel a·x²+b·x+c"""
     name = "opg3_3"
     cases = [
@@ -202,12 +202,12 @@ def testopg3_3(func):
         got = func(*inp)
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
-            a, b, c, punkter = inp
-            if _viz: _viz.feedback_loss((a, b, c), punkter, got, exp)
+            a, b, c, points = inp
+            if _viz: _viz.feedback_loss((a, b, c), points, got, exp)
             return
     _ok(name)
 
-def testopg3_4(func):
+def test_ex3_4(func):
     """SSE for n punkter, plan a1·x+a2·y+b=z"""
     name = "opg3_4"
     cases = [
@@ -229,7 +229,7 @@ def testopg3_4(func):
 
 # ── opg 4 (SSE til MSE) ───────────────────────────────────────────────────────
 
-def testopg4_1(func):
+def test_ex4_1(func):
     """MSE for n punkter, linje a·x+b (SSE delt med antal punkter)"""
     name = "opg4_1"
     cases = [
@@ -248,7 +248,7 @@ def testopg4_1(func):
             return
     _ok(name)
 
-def testopg4_2(func):
+def test_ex4_2(func):
     """MSE for n punkter, parabel a·x²+b·x+c (SSE delt med antal punkter)"""
     name = "opg4_2"
     cases = [
@@ -267,7 +267,7 @@ def testopg4_2(func):
             return
     _ok(name)
 
-def testopg4_3(func):
+def test_ex4_3(func):
     """MSE for n punkter, plan a1·x+a2·y+b=z (SSE delt med antal punkter)"""
     name = "opg4_3"
     cases = [
@@ -289,7 +289,7 @@ def testopg4_3(func):
 
 # ── opg 5 (differentiering af x: potens-, sum- og kædedregel) ────────────────
 
-def testopg5_1(func):
+def test_ex5_1(func):
     """f(x) = 5x²  →  find f'(x)"""
     name = "opg5_1"
     f = lambda x: 5 * x**2
@@ -306,11 +306,11 @@ def testopg5_1(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             print("  Hint: potensreglen — d/dx(c·xⁿ) = c·n·xⁿ⁻¹.")
-            if _viz: _viz.feedback_haeldning(f, inp, got, exp)
+            if _viz: _viz.feedback_slope(f, inp, got, exp)
             return
     _ok(name)
 
-def testopg5_2(func):
+def test_ex5_2(func):
     """f(x) = 5x⁶  →  find f'(x)"""
     name = "opg5_2"
     f = lambda x: 5 * x**6
@@ -327,11 +327,11 @@ def testopg5_2(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             print("  Hint: potensreglen — d/dx(c·xⁿ) = c·n·xⁿ⁻¹.")
-            if _viz: _viz.feedback_haeldning(f, inp, got, exp)
+            if _viz: _viz.feedback_slope(f, inp, got, exp)
             return
     _ok(name)
 
-def testopg5_3(func):
+def test_ex5_3(func):
     """f(x) = 3x  →  find f'(x)"""
     name = "opg5_3"
     f = lambda x: 3 * x
@@ -348,11 +348,11 @@ def testopg5_3(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             print("  Hint: potensreglen — x er x¹, så f'(x) er bare tallet foran x.")
-            if _viz: _viz.feedback_haeldning(f, inp, got, exp)
+            if _viz: _viz.feedback_slope(f, inp, got, exp)
             return
     _ok(name)
 
-def testopg5_4(func):
+def test_ex5_4(func):
     """f(x) = 17  →  find f'(x)"""
     name = "opg5_4"
     f = lambda x: 17
@@ -369,11 +369,11 @@ def testopg5_4(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             print("  Hint: en konstant funktion ændrer sig aldrig — hældningen er altid 0.")
-            if _viz: _viz.feedback_haeldning(f, inp, got, exp)
+            if _viz: _viz.feedback_slope(f, inp, got, exp)
             return
     _ok(name)
 
-def testopg5_5(func):
+def test_ex5_5(func):
     """f(x) = x² + 4x  →  find f'(x)"""
     name = "opg5_5"
     f = lambda x: x**2 + 4*x
@@ -390,11 +390,11 @@ def testopg5_5(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             print("  Hint: differentiér hvert led for sig (sumreglen), og læg sammen.")
-            if _viz: _viz.feedback_haeldning(f, inp, got, exp)
+            if _viz: _viz.feedback_slope(f, inp, got, exp)
             return
     _ok(name)
 
-def testopg5_6(func):
+def test_ex5_6(func):
     """f(x) = 2x² + 4x + 7  →  find f'(x)"""
     name = "opg5_6"
     f = lambda x: 2*x**2 + 4*x + 7
@@ -411,11 +411,11 @@ def testopg5_6(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             print("  Hint: differentiér hvert led for sig (sumreglen) — den konstante 7 forsvinder.")
-            if _viz: _viz.feedback_haeldning(f, inp, got, exp)
+            if _viz: _viz.feedback_slope(f, inp, got, exp)
             return
     _ok(name)
 
-def testopg5_7(func):
+def test_ex5_7(func):
     """f(x) = (2x+1)²  →  find f'(x)"""
     name = "opg5_7"
     f = lambda x: (2*x + 1)**2
@@ -432,11 +432,11 @@ def testopg5_7(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             print("  Hint: kædedreglen — differentiér det ydre kvadrat (2·u), og gang med den afledte af det indre (u'=2).")
-            if _viz: _viz.feedback_haeldning(f, inp, got, exp)
+            if _viz: _viz.feedback_slope(f, inp, got, exp)
             return
     _ok(name)
 
-def testopg5_8(func):
+def test_ex5_8(func):
     """f(x) = (4x² + 3x)² + 7x + 4  →  find f'(x)"""
     name = "opg5_8"
     f = lambda x: (4*x**2 + 3*x)**2 + 7*x + 4
@@ -453,14 +453,14 @@ def testopg5_8(func):
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
             print("  Hint: kædedreglen på det ydre kvadrat (indre u = 4x²+3x, u' = 8x+3), plus sumreglen for +7x+4.")
-            if _viz: _viz.feedback_haeldning(f, inp, got, exp)
+            if _viz: _viz.feedback_slope(f, inp, got, exp)
             return
     _ok(name)
 
 
 # ── opg 6 (partielt afledte og gradienter) ───────────────────────────────────
 
-def testopg6_1(func):
+def test_ex6_1(func):
     """f(x,y) = x² + y²  →  find gradienten (∂f/∂x, ∂f/∂y)"""
     name = "opg6_1"
     f = lambda x, y: x**2 + y**2
@@ -481,7 +481,7 @@ def testopg6_1(func):
             return
     _ok(name)
 
-def testopg6_2(func):
+def test_ex6_2(func):
     """f(x,y) = x²·y + y²  →  find gradienten (∂f/∂x, ∂f/∂y)"""
     name = "opg6_2"
     f = lambda x, y: x**2 * y + y**2
@@ -502,7 +502,7 @@ def testopg6_2(func):
             return
     _ok(name)
 
-def testopg6_3(func):
+def test_ex6_3(func):
     """f(x,y) = x·y² + y  →  find gradienten (∂f/∂x, ∂f/∂y)"""
     name = "opg6_3"
     f = lambda x, y: x * y**2 + y
@@ -523,7 +523,7 @@ def testopg6_3(func):
             return
     _ok(name)
 
-def testopg6_4(func):
+def test_ex6_4(func):
     """f(x,y) = (2x+y)²  →  find gradienten (∂f/∂x, ∂f/∂y)"""
     name = "opg6_4"
     f = lambda x, y: (2*x + y)**2
@@ -544,7 +544,7 @@ def testopg6_4(func):
             return
     _ok(name)
 
-def testopg6_5(func):
+def test_ex6_5(func):
     """f(x,y) = (x²+y)² + 3x  →  find gradienten (∂f/∂x, ∂f/∂y)"""
     name = "opg6_5"
     f = lambda x, y: (x**2 + y)**2 + 3*x
@@ -565,7 +565,7 @@ def testopg6_5(func):
             return
     _ok(name)
 
-def testopg6_6(func):
+def test_ex6_6(func):
     """f(x,y,z) = x·y + y·z + z²  →  find gradienten (∂f/∂x, ∂f/∂y, ∂f/∂z)"""
     name = "opg6_6"
     cases = [
@@ -587,7 +587,7 @@ def testopg6_6(func):
 
 # ── opg 7 (gradient af loss) ──────────────────────────────────────────────────
 
-def testopg7_1(func):
+def test_ex7_1(func):
     """Gradient af SSE mht. (a,b) for linjen y=a·x+b, ét enkelt punkt"""
     name = "opg7_1"
     cases = [
@@ -606,7 +606,7 @@ def testopg7_1(func):
             return
     _ok(name)
 
-def testopg7_2(func):
+def test_ex7_2(func):
     """Gradient af SSE mht. (a,b) for linjen y=a·x+b, præcis 2 punkter"""
     name = "opg7_2"
     cases = [
@@ -625,7 +625,7 @@ def testopg7_2(func):
             return
     _ok(name)
 
-def testopg7_3(func):
+def test_ex7_3(func):
     """Gradient af SSE mht. (a,b) for linjen y=a·x+b, n punkter"""
     name = "opg7_3"
     cases = [
@@ -644,7 +644,7 @@ def testopg7_3(func):
             return
     _ok(name)
 
-def testopg7_4(func):
+def test_ex7_4(func):
     """Gradient af SSE mht. (a,b,c) for parablen y=a·x²+b·x+c, ét enkelt punkt"""
     name = "opg7_4"
     cases = [
@@ -663,7 +663,7 @@ def testopg7_4(func):
             return
     _ok(name)
 
-def testopg7_5(func):
+def test_ex7_5(func):
     """Gradient af SSE mht. (a,b,c) for parablen y=a·x²+b·x+c, præcis 2 punkter"""
     name = "opg7_5"
     cases = [
@@ -682,7 +682,7 @@ def testopg7_5(func):
             return
     _ok(name)
 
-def testopg7_6(func):
+def test_ex7_6(func):
     """Gradient af SSE mht. (a,b,c) for parablen y=a·x²+b·x+c, n punkter"""
     name = "opg7_6"
     cases = [
@@ -701,7 +701,7 @@ def testopg7_6(func):
             return
     _ok(name)
 
-def testopg7_7(func):
+def test_ex7_7(func):
     """Gradient af SSE mht. (a1,a2,b) for planen a1·x+a2·y+b=z"""
     name = "opg7_7"
     cases = [
@@ -723,7 +723,7 @@ def testopg7_7(func):
 
 # ── opg 8 (gradient af MSE) ───────────────────────────────────────────────────
 
-def testopg8_1(func):
+def test_ex8_1(func):
     """Gradient af MSE mht. (a,b) for linjen y=a·x+b, n punkter (SSE-gradient delt med n)"""
     name = "opg8_1"
     cases = [
@@ -742,7 +742,7 @@ def testopg8_1(func):
             return
     _ok(name)
 
-def testopg8_2(func):
+def test_ex8_2(func):
     """Gradient af MSE mht. (a,b,c) for parablen y=a·x²+b·x+c, n punkter (SSE-gradient delt med n)"""
     name = "opg8_2"
     cases = [
@@ -761,7 +761,7 @@ def testopg8_2(func):
             return
     _ok(name)
 
-def testopg8_3(func):
+def test_ex8_3(func):
     """Gradient af MSE mht. (a1,a2,b) for planen a1·x+a2·y+b=z (SSE-gradient delt med n)"""
     name = "opg8_3"
     cases = [
@@ -783,7 +783,7 @@ def testopg8_3(func):
 
 # ── opg 9 (gradient descent) ─────────────────────────────────────────────────
 
-def testopg9_1(func):
+def test_ex9_1(func):
     """Vægtopdatering: a,b,a_delta,b_delta → (a−a_delta, b−b_delta)"""
     name = "opg9_1"
     cases = [
@@ -802,7 +802,7 @@ def testopg9_1(func):
             return
     _ok(name)
 
-def testopg9_2(func):
+def test_ex9_2(func):
     """Ét gradient descent-skridt for linjen y=a·x+b: a,b,punkter,lr → (a,b) efter skridtet"""
     name = "opg9_2"
     cases = [
@@ -821,14 +821,14 @@ def testopg9_2(func):
             return
     _ok(name)
 
-def testopg9_3(func):
+def test_ex9_3(func):
     """Træningsloop for linjen: kør opg9_2 n gange i træk"""
     name = "opg9_3"
-    punkter = [(1,2),(3,4),(4,3),(2.5,2.5)]
+    points = [(1,2),(3,4),(4,3),(2.5,2.5)]
     cases = [
-        ((0.0, 0.0, punkter, 0.05, 1),                       (0.80625, 0.28750000000000003)),
-        ((0.0, 0.0, punkter, 0.05, 3),                       (0.890269775390625, 0.3558129882812501)),
-        ((0.0, 0.0, punkter, 0.05, 10),                      (0.8515188432754992, 0.47661894571251673)),
+        ((0.0, 0.0, points, 0.05, 1),                       (0.80625, 0.28750000000000003)),
+        ((0.0, 0.0, points, 0.05, 3),                       (0.890269775390625, 0.3558129882812501)),
+        ((0.0, 0.0, points, 0.05, 10),                      (0.8515188432754992, 0.47661894571251673)),
         ((1.0, 1.0, [(0,0),(1,2),(2,4)], 0.1, 5),            (1.3804628806584363, 0.844472098765432)),
     ]
     for inp, exp in cases:
@@ -840,7 +840,7 @@ def testopg9_3(func):
     _ok(name)
 
 
-def testopg9_4(func):
+def test_ex9_4(func):
     """Vægtopdatering for parablen: a,b,c,a_delta,b_delta,c_delta → (a−a_delta, b−b_delta, c−c_delta)"""
     name = "opg9_4"
     cases = [
@@ -858,7 +858,7 @@ def testopg9_4(func):
             return
     _ok(name)
 
-def testopg9_5(func):
+def test_ex9_5(func):
     """Ét gradient descent-skridt for parablen y=a·x²+b·x+c: a,b,c,punkter,lr → (a,b,c) efter skridtet"""
     name = "opg9_5"
     cases = [
@@ -875,13 +875,13 @@ def testopg9_5(func):
             return
     _ok(name)
 
-def testopg9_6(func):
+def test_ex9_6(func):
     """Træningsloop for parablen: kør opg9_5 n gange i træk"""
     name = "opg9_6"
-    punkter = [(1,2),(2,1),(3,0)]
+    points = [(1,2),(2,1),(3,0)]
     cases = [
-        ((0.0, 0.0, 0.0, punkter, 0.02, 5),   (0.00895658919506171, 0.11662914159670781, 0.13686546457283952)),
-        ((0.0, 0.0, 0.0, punkter, 0.02, 20),  (-0.12311594684208543, 0.3421750723226392, 0.449429350984422)),
+        ((0.0, 0.0, 0.0, points, 0.02, 5),   (0.00895658919506171, 0.11662914159670781, 0.13686546457283952)),
+        ((0.0, 0.0, 0.0, points, 0.02, 20),  (-0.12311594684208543, 0.3421750723226392, 0.449429350984422)),
     ]
     for inp, exp in cases:
         got = func(*inp)

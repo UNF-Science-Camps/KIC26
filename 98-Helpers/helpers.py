@@ -15,6 +15,7 @@ import io
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn as nn
 import re
 
 
@@ -25,34 +26,56 @@ def _til_numpy(x):
     return np.asarray(x)
 
 
-def plot_gd_skridt(f, punkter, titel="Gradient descent"):
+# ── Træningshjælpere (læs dem gerne, men I skal ikke redigere dem) ──────────
+def train(model, X, y, epochs=1500, lr=0.01):
+    """Standard 5-trins træningsloop (BCELoss + Adam). Returnerer loss-historikken."""
+    loss_fn = nn.BCELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    history = []
+    for epoch in range(epochs):
+        optimizer.zero_grad()          # 1. nulstil
+        y_hat = model(X).squeeze()     # 2. forward
+        loss = loss_fn(y_hat, y)       # 3. loss
+        loss.backward()                # 4. backward
+        optimizer.step()               # 5. step
+        history.append(loss.item())
+    return history
+
+
+
+
+
+
+
+
+def plot_gd_step(f, points, title="Gradient descent"):
     """Tegner funktionen f og de skridt, gradient descent har taget.
 
     f:       en funktion der tager et tal (eller numpy-array) og returnerer f(x)
     punkter: liste af x-værdier, ét tal pr. skridt (samlet op i jeres loop)
     """
-    punkter = np.array([float(p) for p in punkter])
-    bredde = max(punkter.max() - punkter.min(), 1.0)
-    x = np.linspace(punkter.min() - 0.5 * bredde, punkter.max() + 0.5 * bredde, 300)
+    points = np.array([float(p) for p in points])
+    width = max(points.max() - points.min(), 1.0)
+    x = np.linspace(points.min() - 0.5 * width, points.max() + 0.5 * width, 300)
 
     plt.figure(figsize=(8, 5))
     plt.plot(x, f(x), color="steelblue", linewidth=2, label="f(x)")
-    plt.scatter(punkter, f(punkter), color="crimson", zorder=3, label="skridt")
-    plt.scatter(punkter[0], f(punkter[0]), color="orange", s=120, zorder=4,
+    plt.scatter(points, f(points), color="crimson", zorder=3, label="skridt")
+    plt.scatter(points[0], f(points[0]), color="orange", s=120, zorder=4,
                 label="start", edgecolors="black")
-    for i in range(len(punkter) - 1):
+    for i in range(len(points) - 1):
         plt.annotate("",
-                     xy=(punkter[i + 1], f(punkter[i + 1])),
-                     xytext=(punkter[i], f(punkter[i])),
+                     xy=(points[i + 1], f(points[i + 1])),
+                     xytext=(points[i], f(points[i])),
                      arrowprops=dict(arrowstyle="->", color="crimson", alpha=0.6))
-    plt.title(titel)
+    plt.title(title)
     plt.xlabel("x")
     plt.ylabel("f(x)")
     plt.legend()
     plt.show()
 
 
-def plot_beslutningsgraense(model, X, y, titel=""):
+def plot_decision_boundary(model, X, y, title=""):
     """Farver planen efter modellens forudsigelser og tegner datapunkterne ovenpå.
 
     model: en (trænet) PyTorch-model der tager præcis 2 features som input
@@ -89,59 +112,59 @@ def plot_beslutningsgraense(model, X, y, titel=""):
 
     plt.scatter(X[:, 0], X[:, 1], c=y, cmap="RdBu_r",
                 edgecolors="black", s=25, zorder=3)
-    plt.title(titel)
+    plt.title(title)
     plt.xlabel("feature 1")
     plt.ylabel("feature 2")
     plt.show()
 
 
-def vis_mnist_billeder(billeder, labels, forudsigelser=None, n=10):
+def show_mnist_images(images, labels, predictions=None, n=10):
     """Viser n MNIST-billeder i ét grid.
 
     billeder:       (N, 784) eller (N, 28, 28) tensor/array med pixelværdier
     labels:         (N,) de rigtige cifre
     forudsigelser:  (N,) modellens gæt (valgfri) — titlen bliver RØD ved fejlgæt
     """
-    billeder = _til_numpy(billeder)
+    images = _til_numpy(images)
     labels = _til_numpy(labels).ravel()
-    if billeder.ndim == 2:
-        billeder = billeder.reshape(-1, 28, 28)
-    if forudsigelser is not None:
-        forudsigelser = _til_numpy(forudsigelser).ravel()
+    if images.ndim == 2:
+        images = images.reshape(-1, 28, 28)
+    if predictions is not None:
+        predictions = _til_numpy(predictions).ravel()
 
-    n = min(n, len(billeder))
+    n = min(n, len(images))
     kolonner = min(n, 5)
     raekker = int(np.ceil(n / kolonner))
-    fig, akser = plt.subplots(raekker, kolonner,
+    fig, axes = plt.subplots(raekker, kolonner,
                               figsize=(2 * kolonner, 2.4 * raekker))
-    for i, akse in enumerate(np.atleast_1d(akser).ravel()):
-        akse.axis("off")
+    for i, axis in enumerate(np.atleast_1d(axes).ravel()):
+        axis.axis("off")
         if i >= n:
             continue
-        akse.imshow(billeder[i], cmap="gray")
-        if forudsigelser is None:
-            akse.set_title(f"label: {int(labels[i])}")
+        axis.imshow(images[i], cmap="gray")
+        if predictions is None:
+            axis.set_title(f"label: {int(labels[i])}")
         else:
-            gaet = int(forudsigelser[i])
-            rigtigt = gaet == int(labels[i])
-            akse.set_title(f"gæt: {gaet} (label: {int(labels[i])})",
+            pred = int(predictions[i])
+            rigtigt = pred == int(labels[i])
+            axis.set_title(f"gæt: {pred} (label: {int(labels[i])})",
                            color="black" if rigtigt else "red")
     plt.tight_layout()
     plt.show()
 
 
-def _som_2d_billeder(billeder):
+def _as_2d_images(images):
     """Accepterer (N, H*W), (N, H, W) eller (N, 1, H, W) og giver (N, H, W)."""
-    billeder = _til_numpy(billeder)
-    if billeder.ndim == 4:                       # (N, 1, H, W)
-        billeder = billeder[:, 0]
-    if billeder.ndim == 2:                       # (N, H*W) — antag kvadratisk
-        side = int(np.sqrt(billeder.shape[1]))
-        billeder = billeder.reshape(-1, side, side)
-    return billeder
+    images = _til_numpy(images)
+    if images.ndim == 4:                       # (N, 1, H, W)
+        images = images[:, 0]
+    if images.ndim == 2:                       # (N, H*W) — antag kvadratisk
+        side = int(np.sqrt(images.shape[1]))
+        images = images.reshape(-1, side, side)
+    return images
 
 
-def vis_billeder(billeder, labels=None, forudsigelser=None, n=10, klassenavne=None):
+def show_images(images, labels=None, predictions=None, n=10, class_names=None):
     """Viser n billeder i ét grid.
 
     billeder:       (N, H*W), (N, H, W) eller (N, 1, H, W) — tensor eller array
@@ -149,69 +172,69 @@ def vis_billeder(billeder, labels=None, forudsigelser=None, n=10, klassenavne=No
     forudsigelser:  (N,) modellens gæt (valgfri) — titlen bliver RØD ved fejlgæt
     klassenavne:    liste der oversætter klassenumre til navne (fx dansk tøj)
     """
-    billeder = _som_2d_billeder(billeder)
+    images = _as_2d_images(images)
     if labels is not None:
         labels = _til_numpy(labels).ravel()
-    if forudsigelser is not None:
-        forudsigelser = _til_numpy(forudsigelser).ravel()
+    if predictions is not None:
+        predictions = _til_numpy(predictions).ravel()
 
-    def navn(k):
+    def name(k):
         k = int(k)
-        return klassenavne[k] if klassenavne is not None else str(k)
+        return class_names[k] if class_names is not None else str(k)
 
-    n = min(n, len(billeder))
+    n = min(n, len(images))
     kolonner = min(n, 5)
     raekker = int(np.ceil(n / kolonner))
-    fig, akser = plt.subplots(raekker, kolonner,
+    fig, axes = plt.subplots(raekker, kolonner,
                               figsize=(2.2 * kolonner, 2.6 * raekker))
-    for i, akse in enumerate(np.atleast_1d(akser).ravel()):
-        akse.axis("off")
+    for i, axis in enumerate(np.atleast_1d(axes).ravel()):
+        axis.axis("off")
         if i >= n:
             continue
-        akse.imshow(billeder[i], cmap="gray")
-        if forudsigelser is not None and labels is not None:
-            rigtigt = int(forudsigelser[i]) == int(labels[i])
-            akse.set_title(f"gæt: {navn(forudsigelser[i])}\n(label: {navn(labels[i])})",
+        axis.imshow(images[i], cmap="gray")
+        if predictions is not None and labels is not None:
+            rigtigt = int(predictions[i]) == int(labels[i])
+            axis.set_title(f"gæt: {name(predictions[i])}\n(label: {name(labels[i])})",
                            color="black" if rigtigt else "red", fontsize=9)
         elif labels is not None:
-            akse.set_title(navn(labels[i]), fontsize=10)
+            axis.set_title(name(labels[i]), fontsize=10)
     plt.tight_layout()
     plt.show()
 
 
-def plot_forvirringsmatrix(y_sand, y_gaet, klassenavne=None, titel="Forvirringsmatrix"):
+def plot_confusion_matrix(y_true, y_pred, class_names=None, title="Forvirringsmatrix"):
     """Tegner en forvirringsmatrix: rækker = det rigtige svar, kolonner = modellens gæt.
 
     Diagonalen er de korrekte gæt — alt udenfor er forvekslinger.
     """
-    y_sand = _til_numpy(y_sand).ravel().astype(int)
-    y_gaet = _til_numpy(y_gaet).ravel().astype(int)
-    antal_klasser = int(max(y_sand.max(), y_gaet.max())) + 1
+    y_true = _til_numpy(y_true).ravel().astype(int)
+    y_pred = _til_numpy(y_pred).ravel().astype(int)
+    antal_klasser = int(max(y_true.max(), y_pred.max())) + 1
 
     matrix = np.zeros((antal_klasser, antal_klasser), dtype=int)
-    for sand, gaet in zip(y_sand, y_gaet):
-        matrix[sand, gaet] += 1
+    for true, pred in zip(y_true, y_pred):
+        matrix[true, pred] += 1
 
     plt.figure(figsize=(7.5, 6.5))
     plt.imshow(matrix, cmap="Blues")
     plt.colorbar(label="antal")
-    navne = klassenavne if klassenavne is not None else [str(i) for i in range(antal_klasser)]
-    plt.xticks(range(antal_klasser), navne, rotation=45, ha="right")
-    plt.yticks(range(antal_klasser), navne)
+    names = class_names if class_names is not None else [str(i) for i in range(antal_klasser)]
+    plt.xticks(range(antal_klasser), names, rotation=45, ha="right")
+    plt.yticks(range(antal_klasser), names)
     plt.xlabel("modellens gæt")
     plt.ylabel("rigtigt svar")
-    plt.title(titel)
+    plt.title(title)
     # skriv tallene i cellerne (hvid tekst på mørk baggrund, sort på lys)
-    graense = matrix.max() / 2 if matrix.max() > 0 else 0.5
+    threshold_boundary = matrix.max() / 2 if matrix.max() > 0 else 0.5
     for i in range(antal_klasser):
         for j in range(antal_klasser):
             plt.text(j, i, matrix[i, j], ha="center", va="center", fontsize=8,
-                     color="white" if matrix[i, j] > graense else "black")
+                     color="white" if matrix[i, j] > threshold_boundary else "black")
     plt.tight_layout()
     plt.show()
 
 
-def plot_kmeans_skridt(X, centre_historik, tildelinger_historik):
+def plot_kmeans_steps(X, centers_history, assignments_history):
     """Tegner k-means-algoritmens iterationer som et grid af scatterplots.
 
     X:                    (N, 2) datapunkter
@@ -219,42 +242,42 @@ def plot_kmeans_skridt(X, centre_historik, tildelinger_historik):
     tildelinger_historik: liste af (N,)-arrays — hvert punkts klynge-nummer pr. iteration
     """
     X = _til_numpy(X)
-    antal = len(centre_historik)
+    antal = len(centers_history)
     kolonner = min(antal, 3)
     raekker = int(np.ceil(antal / kolonner))
-    fig, akser = plt.subplots(raekker, kolonner,
+    fig, axes = plt.subplots(raekker, kolonner,
                               figsize=(4.5 * kolonner, 4 * raekker))
-    for i, akse in enumerate(np.atleast_1d(akser).ravel()):
+    for i, axis in enumerate(np.atleast_1d(axes).ravel()):
         if i >= antal:
-            akse.axis("off")
+            axis.axis("off")
             continue
-        centre = _til_numpy(centre_historik[i])
-        tildeling = _til_numpy(tildelinger_historik[i])
-        akse.scatter(X[:, 0], X[:, 1], c=tildeling, cmap="tab10", s=15, alpha=0.7)
-        akse.scatter(centre[:, 0], centre[:, 1], marker="X", s=250,
+        centers = _til_numpy(centers_history[i])
+        assignment = _til_numpy(assignments_history[i])
+        axis.scatter(X[:, 0], X[:, 1], c=assignment, cmap="tab10", s=15, alpha=0.7)
+        axis.scatter(centers[:, 0], centers[:, 1], marker="X", s=250,
                      color="black", edgecolors="white", linewidths=1.5, zorder=3)
-        akse.set_title(f"iteration {i}")
+        axis.set_title(f"iteration {i}")
     plt.tight_layout()
     plt.show()
 
 
-def vis_rekonstruktioner(originaler, rekonstruktioner, n=8, titel=""):
+def show_reconstructions(originals, reconstructions, n=8, title=""):
     """Viser originale billeder (øverste række) og rekonstruktioner (nederste)."""
-    originaler = _som_2d_billeder(originaler)
-    rekonstruktioner = _som_2d_billeder(rekonstruktioner)
-    n = min(n, len(originaler))
+    originals = _as_2d_images(originals)
+    reconstructions = _as_2d_images(reconstructions)
+    n = min(n, len(originals))
 
-    fig, akser = plt.subplots(2, n, figsize=(1.6 * n, 3.6))
-    akser = np.array(akser).reshape(2, n)     # også når n = 1
+    fig, axes = plt.subplots(2, n, figsize=(1.6 * n, 3.6))
+    axes = np.array(axes).reshape(2, n)     # også når n = 1
     for i in range(n):
-        akser[0, i].imshow(originaler[i], cmap="gray")
-        akser[1, i].imshow(rekonstruktioner[i], cmap="gray")
-        akser[0, i].axis("off")
-        akser[1, i].axis("off")
-    akser[0, 0].set_title("original", loc="left", fontsize=10)
-    akser[1, 0].set_title("rekonstruktion", loc="left", fontsize=10)
-    if titel:
-        fig.suptitle(titel)
+        axes[0, i].imshow(originals[i], cmap="gray")
+        axes[1, i].imshow(reconstructions[i], cmap="gray")
+        axes[0, i].axis("off")
+        axes[1, i].axis("off")
+    axes[0, 0].set_title("original", loc="left", fontsize=10)
+    axes[1, 0].set_title("rekonstruktion", loc="left", fontsize=10)
+    if title:
+        fig.suptitle(title)
     plt.tight_layout()
     plt.show()
 
@@ -475,24 +498,24 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
 mpl.rcParams['animation.embed_limit'] = 100
 
 
-def gradient_linje(a, b, punkter):
+def gradient_line(a, b, points):
     """Gradienten af squared loss for linjen y = a·x + b, mht. a og b. Bruges til opg5's gradient descent."""
     grad_a, grad_b = 0.0, 0.0
-    for x, y in punkter:
+    for x, y in points:
         err    = 2 * (a * x + b - y)
         grad_a += err * x
         grad_b += err
     return grad_a, grad_b
 
 
-def closed_form_linje(punkter):
+def closed_form_line(points):
     """
     Analytisk mindste-kvadraters løsning for y = a·x + b — "de normale ligninger",
     w = (XᵀX)⁻¹Xᵀy, samme lineære algebra som opgave 1_4. Bruges til at sammenligne
     med den linje jeres egen gradient descent finder.
     """
-    xs = np.array([p[0] for p in punkter], dtype=float)
-    ys = np.array([p[1] for p in punkter], dtype=float)
+    xs = np.array([p[0] for p in points], dtype=float)
+    ys = np.array([p[1] for p in points], dtype=float)
     A = np.column_stack([xs, np.ones_like(xs)])
     w = np.linalg.inv(A.T @ A) @ A.T @ ys
     return float(w[0]), float(w[1])
@@ -500,7 +523,7 @@ def closed_form_linje(punkter):
 
 # ── Delte hjælpefunktioner til loss-flade og fejl-kvadrater ────────────────
 
-def _kurve_label(params, prefix=""):
+def _curve_label(params, prefix=""):
     """Formatterer 'y = a·x + b' eller 'y = a·x² + b·x + c' afhængig af antal parametre."""
     try:
         if len(params) == 2:
@@ -513,7 +536,7 @@ def _kurve_label(params, prefix=""):
         return f"{prefix}: {params}"
 
 
-def _eval_kurve(params, x):
+def _eval_curve(params, x):
     """Evaluerer linjen (2 params) eller parablen (3 params) i x — x må gerne være et numpy-array."""
     if len(params) == 2:
         a, b = params
@@ -522,7 +545,7 @@ def _eval_kurve(params, x):
     return a * x**2 + b * x + c
 
 
-def _tegn_matrix_bracket(ax, x, y_top, y_bot, retning=1, tick=0.15, lw=1.6):
+def _draw_matrix_bracket(ax, x, y_top, y_bot, retning=1, tick=0.15, lw=1.6):
     """Tegner en kantet-parentes-side ('[' hvis retning=1, ']' hvis retning=-1) — ren matplotlib,
     ingen afhængighed af LaTeX/usetex."""
     ax.plot([x, x], [y_top, y_bot], color='black', linewidth=lw, solid_capstyle='butt')
@@ -537,7 +560,7 @@ def _matrix_hojde(M, cell_h=0.55):
     return rows * cell_h
 
 
-def _tegn_matrix(ax, x, y, label, M, fmt="{:.2f}", cell_w=1.05, cell_h=0.55, fontsize=11):
+def _draw_matrix(ax, x, y, label, M, fmt="{:.2f}", cell_w=1.05, cell_h=0.55, fontsize=11):
     """
     Tegner matricen M (1D vises som søjlevektor) centreret om (x, y) som venstre kant.
     fmt=None betyder symbolske entries (fx bogstaver som 'a'/'b') — de vises som de er,
@@ -562,16 +585,16 @@ def _tegn_matrix(ax, x, y, label, M, fmt="{:.2f}", cell_w=1.05, cell_h=0.55, fon
             ax.text(cx, cy, tekst, ha='center', va='center', fontsize=fontsize)
 
     x_right = x + width + 2 * pad
-    _tegn_matrix_bracket(ax, x,       y_top, y_bot, retning=1)
-    _tegn_matrix_bracket(ax, x_right, y_top, y_bot, retning=-1)
+    _draw_matrix_bracket(ax, x,       y_top, y_bot, retning=1)
+    _draw_matrix_bracket(ax, x_right, y_top, y_bot, retning=-1)
     ax.text((x + x_right) / 2, y_top + 0.35, label, ha='center', fontsize=fontsize + 1)
     return x_right
 
 
-def _tegn_symbol(ax, x, y, symbol, bredde=0.7, fontsize=18):
+def _draw_symbol(ax, x, y, symbol, width=0.7, fontsize=18):
     """Tegner et regneoperator-symbol ('·', '=', ...) mellem to matricer, se linalg_losning."""
-    ax.text(x + bredde / 2, y, symbol, ha='center', va='center', fontsize=fontsize)
-    return x + bredde
+    ax.text(x + width / 2, y, symbol, ha='center', va='center', fontsize=fontsize)
+    return x + width
 
 
 def _loss_grid(loss_fn, a_range, b_range, resolution=60):
@@ -586,18 +609,18 @@ def _loss_grid(loss_fn, a_range, b_range, resolution=60):
     return A, B, L
 
 
-_STANDARD_ØVRE_PERCENTIL = 90  # se _tegn_kontur/loss_range — SAMME klippe-regel bruges overalt,
+_DEFAULT_UPPER_PERCENTILE = 90  # se _tegn_kontur/loss_range — SAMME klippe-regel bruges overalt,
                                 # både når et panel autoskalerer til sine egne (lokale) data og
                                 # når flere paneler eksplicit deler samme farve_range, netop
                                 # for at farverne skal være sammenlignelige på tværs af BÅDE
                                 # paneler OG celler i det hele taget.
 
 
-def _tegn_kontur(ax, A, B, L, colorbar=True, titel='Loss (kontur)', farve_range=None):
-    if farve_range is not None:
+def _draw_kontur(ax, A, B, L, colorbar=True, title='Loss (kontur)', color_range=None):
+    if color_range is not None:
         # DELT farveskala på tværs af flere paneler (fx et zoomet og et fuldt udzoomet) — så
         # samme farve altid betyder samme loss-værdi, uanset hvilket panel man kigger på.
-        lo, hi = farve_range
+        lo, hi = color_range
     else:
         # STANDARD (intet farve_range givet): autoskalér til dette panels EGNE data, men klip
         # stadig de øverste ekstremværdier (samme percentil som ovenfor) i stedet for det
@@ -605,7 +628,7 @@ def _tegn_kontur(ax, A, B, L, colorbar=True, titel='Loss (kontur)', farve_range=
         # meste af farveskalaen og efterlade næsten ingen kontrast omkring de lave (interessante)
         # loss-værdier, i ETHVERT panel der viser den slags landskab, ikke kun dem der eksplicit
         # beder om det.
-        lo, hi = float(np.min(L)), float(np.percentile(L, _STANDARD_ØVRE_PERCENTIL))
+        lo, hi = float(np.min(L)), float(np.percentile(L, _DEFAULT_UPPER_PERCENTILE))
     cs = ax.contourf(A, B, L, levels=np.linspace(lo, max(hi, lo + 1e-12), 31), cmap='viridis', extend='max')
     if colorbar:
         # Bemærk: hvert kald skrumper ax'et lidt for at gøre plads til farveskalaen,
@@ -613,11 +636,11 @@ def _tegn_kontur(ax, A, B, L, colorbar=True, titel='Loss (kontur)', farve_range=
         plt.colorbar(cs, ax=ax, shrink=0.8)
     ax.set_xlabel('a')
     ax.set_ylabel('b')
-    ax.set_title(titel)
+    ax.set_title(title)
     return cs
 
 
-def loss_range(loss_fn, a_range, b_range, resolution=60, øvre_percentil=_STANDARD_ØVRE_PERCENTIL):
+def loss_range(loss_fn, a_range, b_range, resolution=60, upper_percentile=_DEFAULT_UPPER_PERCENTILE):
     """Regner (min, max) af loss_fn hen over et grid — brug den til at give flere paneler
     samme farve_range (se loss_kontur), så farverne kan sammenlignes på tværs af paneler,
     fx et zoomet og et fuldt udzoomet panel af samme landskab.
@@ -630,11 +653,11 @@ def loss_range(loss_fn, a_range, b_range, resolution=60, øvre_percentil=_STANDA
     over percentilen klippes til samme farve som percentilen selv (loss_kontur bruger
     extend='max')."""
     _, _, L = _loss_grid(loss_fn, a_range, b_range, resolution)
-    hi = float(np.percentile(L, øvre_percentil)) if øvre_percentil is not None else float(np.max(L))
+    hi = float(np.percentile(L, upper_percentile)) if upper_percentile is not None else float(np.max(L))
     return float(np.min(L)), hi
 
 
-def _tegn_3d(ax, A, B, L):
+def _draw_3d(ax, A, B, L):
     # matplotlib 3D-akser regner selv ud i hvilken rækkefølge artists tegnes (baseret på
     # kamera-afstand), så et scatter-punkt kan ende "begravet" i fladen selvom det har
     # højere zorder. computed_zorder=False slår det fra, så vi selv styrer rækkefølgen.
@@ -646,7 +669,7 @@ def _tegn_3d(ax, A, B, L):
     ax.set_title('Loss (3D-flade)')
 
 
-def _tegn_kvadrater_panel(ax, xs, ys, params, x_min=None, x_max=None, y_min=None, y_max=None, label_prefix="model"):
+def _draw_kvadrater_panel(ax, xs, ys, params, x_min=None, x_max=None, y_min=None, y_max=None, label_prefix="model"):
     """
     Tegner datapunkter, modellen (linje hvis params=(a,b), parabel hvis params=(a,b,c)),
     og et kvadrat per fejl. Kvadratets areal = fejlens bidrag til squared loss.
@@ -654,7 +677,7 @@ def _tegn_kvadrater_panel(ax, xs, ys, params, x_min=None, x_max=None, y_min=None
     Angiv x_min/x_max/y_min/y_max for at låse aksernes skala på tværs af flere kald
     (ellers deformeres kvadraterne visuelt når fejlens størrelse ændrer sig).
     """
-    y_preds = _eval_kurve(params, xs)
+    y_preds = _eval_curve(params, xs)
     errors  = y_preds - ys
 
     max_e = float(np.max(np.abs(errors))) if len(errors) else 1.0
@@ -664,8 +687,8 @@ def _tegn_kvadrater_panel(ax, xs, ys, params, x_min=None, x_max=None, y_min=None
         x_max = xs.max() + max_e + 0.5
     x_line = np.linspace(x_min, x_max, 300)
 
-    ax.plot(x_line, _eval_kurve(params, x_line), color='royalblue', linewidth=2,
-            label=_kurve_label(params, prefix=label_prefix), zorder=2)
+    ax.plot(x_line, _eval_curve(params, x_line), color='royalblue', linewidth=2,
+            label=_curve_label(params, prefix=label_prefix), zorder=2)
 
     for x, y, y_pred, e in zip(xs, ys, y_preds, errors):
         side  = abs(float(e))
@@ -698,14 +721,14 @@ def _tegn_kvadrater_panel(ax, xs, ys, params, x_min=None, x_max=None, y_min=None
 # hvis det står alene i en celle, eller kan lægges sammen med andre paneler.)
 
 class _Panel:
-    def __init__(self, tegn_fn, figsize=(6, 5), projection=None):
-        self._tegn      = tegn_fn
+    def __init__(self, draw_fn, figsize=(6, 5), projection=None):
+        self._draw      = draw_fn
         self.figsize    = figsize
         self.projection = projection
 
     def _repr_png_(self):
         fig = plt.figure(figsize=self.figsize)
-        self._tegn(fig.add_subplot(1, 1, 1, projection=self.projection))
+        self._draw(fig.add_subplot(1, 1, 1, projection=self.projection))
         plt.tight_layout()
         buf = io.BytesIO()
         fig.savefig(buf, format='png', dpi=100, bbox_inches='tight')
@@ -718,7 +741,7 @@ def display(*paneler, figsize=None):
     n = len(paneler)
     fig = plt.figure(figsize=figsize or (6 * n, 5))
     for i, panel in enumerate(paneler):
-        panel._tegn(fig.add_subplot(1, n, i + 1, projection=panel.projection))
+        panel._draw(fig.add_subplot(1, n, i + 1, projection=panel.projection))
     plt.tight_layout()
     plt.show()
 
@@ -733,16 +756,16 @@ def display_grid(paneler, cols, row_labels=None, figsize=None):
     rows = -(-len(paneler) // cols)  # rundet op
     fig = plt.figure(figsize=figsize or (3 * cols, 2.8 * rows))
     for i, panel in enumerate(paneler):
-        raekke, soejle = divmod(i, cols)
+        row, bar = divmod(i, cols)
         ax = fig.add_subplot(rows, cols, i + 1, projection=panel.projection)
-        panel._tegn(ax)
-        if soejle == 0 and row_labels:
-            ax.set_ylabel(f"{row_labels[raekke]}\n\n{ax.get_ylabel()}", fontsize=9)
+        panel._draw(ax)
+        if bar == 0 and row_labels:
+            ax.set_ylabel(f"{row_labels[row]}\n\n{ax.get_ylabel()}", fontsize=9)
     plt.tight_layout()
     plt.show()
 
 
-def bar_sammenligning(navne, kørsler, farver, titel=None):
+def bar_comparison(names, runs, colors, title=None):
     """
     Sammenlign flere metoder på AFSTAND TIL BEDSTE MULIGE loss (0 = perfekt, altid ≥ 0 — så
     'lavest er bedst' altid betyder 'tættest på bunden', uanset om landskabets egen loss-skala
@@ -759,53 +782,53 @@ def bar_sammenligning(navne, kørsler, farver, titel=None):
     Hver metode vises som en lille klynge af søjler: én (fuld farve, sort kant) for medianen af
     kørslerne, derefter én smal, halvgennemsigtig søjle pr. individuel kørsel.
     """
-    def tegn(ax):
+    def draw(ax):
         medianer = []
-        for løb in kørsler:
-            synlige = [v for v in løb if v is not None]
+        for run in runs:
+            synlige = [v for v in run if v is not None]
             medianer.append(float(np.median(synlige)) if synlige else None)
 
-        alle_synlige = [v for løb in kørsler for v in løb if v is not None] + \
+        alle_synlige = [v for run in runs for v in run if v is not None] + \
                        [m for m in medianer if m is not None]
         loft = max((np.percentile(alle_synlige, 90) if alle_synlige else 1.0) * 1.35, 1e-9)
 
-        n_søjler = 5  # median + 4 individuelle kørsler
-        bredde = 0.8 / n_søjler
-        offsets = [-0.4 + bredde * (i + 0.5) for i in range(n_søjler)]
+        n_bars = 5  # median + 4 individuelle kørsler
+        width = 0.8 / n_bars
+        offsets = [-0.4 + width * (i + 0.5) for i in range(n_bars)]
 
-        def tegn_søjle(x, v, farve, alpha, kant, linjebredde):
+        def draw_bar(x, v, color, alpha, edge, line_width):
             # kant/linjebredde bevares i ALLE 3 tilfælde — ellers mister median-søjlen (sort
             # kant) sin eneste visuelle forskel fra de 4 tynde kørsel-søjler, uanset hvilket
             # af de 3 tilfælde den rammer.
             if v is None:
                 # reelt eksploderet — ingen søjle at vise, kun skravering
-                ax.bar(x, loft, width=bredde, color='none', edgecolor=kant, hatch='///', linewidth=linjebredde)
+                ax.bar(x, loft, width=width, color='none', edgecolor=edge, hatch='///', linewidth=line_width)
             elif v > loft:
                 # gyldigt, endeligt resultat — bare større end denne rækkes skala. Vis en RIGTIG
                 # (fyldt) søjle afskåret ved loftet, ikke en skraveret — søjlens egen farve
                 # signalerer "dette TALTE med", trekanten "men tallet er større end vist".
-                ax.bar(x, loft, width=bredde, color=farve, alpha=alpha, edgecolor=kant, linewidth=linjebredde)
-                ax.plot(x, loft, marker='^', color=(kant if kant != 'none' else farve), markersize=5,
+                ax.bar(x, loft, width=width, color=color, alpha=alpha, edgecolor=edge, linewidth=line_width)
+                ax.plot(x, loft, marker='^', color=(edge if edge != 'none' else color), markersize=5,
                         zorder=5, clip_on=False)
             else:
-                ax.bar(x, max(v, 0.0), width=bredde, color=farve, alpha=alpha, edgecolor=kant, linewidth=linjebredde)
+                ax.bar(x, max(v, 0.0), width=width, color=color, alpha=alpha, edgecolor=edge, linewidth=line_width)
 
-        for m, (farve, løb, median) in enumerate(zip(farver, kørsler, medianer)):
-            tegn_søjle(m + offsets[0], median, farve, alpha=1.0, kant='black', linjebredde=1.4)
-            for k, v in enumerate(løb):
-                tegn_søjle(m + offsets[k + 1], v, farve, alpha=0.5, kant=farve, linjebredde=0.6)
+        for m, (color, run, median) in enumerate(zip(colors, runs, medianer)):
+            draw_bar(m + offsets[0], median, color, alpha=1.0, edge='black', line_width=1.4)
+            for k, v in enumerate(run):
+                draw_bar(m + offsets[k + 1], v, color, alpha=0.5, edge=color, line_width=0.6)
 
-        ax.set_xticks(range(len(navne)))
-        ax.set_xticklabels(navne, fontsize=9, rotation=20, ha='right')
+        ax.set_xticks(range(len(names)))
+        ax.set_xticklabels(names, fontsize=9, rotation=20, ha='right')
         # lidt luft over loftet, ellers klippes den lille trekant-markør (clip_on=False) af
         # figurkanten i stedet for at ses ovenpå den afskårne søjle.
         ax.set_ylim(0, loft * 1.06)
         ax.set_ylabel('afstand til bedste mulige')
-        ax.set_title(titel or 'sammenligning')
-    return _Panel(tegn, figsize=(4.5, 5))
+        ax.set_title(title or 'sammenligning')
+    return _Panel(draw, figsize=(4.5, 5))
 
 
-def loss_kontur(loss_fn, a_range, b_range, resolution=60, punkt=None, path=None, gradient=None, gradient_farve='white', colorbar=True, titel=None, ekstra_stier=None, ekstra_pile=None, equal_aspect=False, farve_range=None, skala=None):
+def loss_contour(loss_fn, a_range, b_range, resolution=60, point=None, path=None, gradient=None, gradient_color='white', colorbar=True, title=None, extra_paths=None, extra_arrows=None, equal_aspect=False, color_range=None, scale=None):
     """
     Loss-flade som kontur-plot over (a, b). loss_fn skal være en funktion af (a, b) —
     typisk en lambda der wrapper en af jeres egne opg3/opg4-funktioner, fx:
@@ -865,21 +888,21 @@ def loss_kontur(loss_fn, a_range, b_range, resolution=60, punkt=None, path=None,
     — det fulde landskabs range bliver typisk enormt (og uinformativt) i det omskalerede rum.
     Kør alene for at se plottet, eller giv den til display()/animate() sammen med andre paneler.
     """
-    def tegn(ax):
-        if skala is not None:
-            skala_a, skala_b = skala
-            grid_loss_fn = lambda aa, bb: loss_fn(aa / skala_a, bb / skala_b)
-            grid_a_range = (a_range[0] * skala_a, a_range[1] * skala_a)
-            grid_b_range = (b_range[0] * skala_b, b_range[1] * skala_b)
+    def draw(ax):
+        if scale is not None:
+            scale_a, scale_b = scale
+            grid_loss_fn = lambda aa, bb: loss_fn(aa / scale_a, bb / scale_b)
+            grid_a_range = (a_range[0] * scale_a, a_range[1] * scale_a)
+            grid_b_range = (b_range[0] * scale_b, b_range[1] * scale_b)
         else:
-            skala_a, skala_b = 1.0, 1.0
+            scale_a, scale_b = 1.0, 1.0
             grid_loss_fn, grid_a_range, grid_b_range = loss_fn, a_range, b_range
 
         def omskaler(p):
-            return (p[0] * skala_a, p[1] * skala_b)
+            return (p[0] * scale_a, p[1] * scale_b)
 
         A, B, L = _loss_grid(grid_loss_fn, grid_a_range, grid_b_range, resolution)
-        _tegn_kontur(ax, A, B, L, colorbar=colorbar, titel=titel or 'Loss (kontur)', farve_range=farve_range)
+        _draw_kontur(ax, A, B, L, colorbar=colorbar, title=title or 'Loss (kontur)', color_range=color_range)
         # eksplicit sat (i stedet for at stole på contourf's egen autoscale) — nødvendigt i
         # animate(), som genbruger samme ax hvert frame: når autoscale først er slået fra
         # (linjen herunder), opdaterer et senere contourf-kald IKKE længere ax'ets grænser af
@@ -888,36 +911,36 @@ def loss_kontur(loss_fn, a_range, b_range, resolution=60, punkt=None, path=None,
         # det første frames grænser, og resten af animationen ville se tom ud.
         ax.set_xlim(grid_a_range)
         ax.set_ylim(grid_b_range)
-        if equal_aspect or skala is not None:
+        if equal_aspect or scale is not None:
             ax.set_aspect('equal', adjustable='box')
         ax.autoscale(False)  # markør/sti må ikke flytte akserne yderligere
-        if ekstra_stier:
+        if extra_paths:
             har_labels = False
-            for item in ekstra_stier:
-                punkter, farve = item[0], item[1]
+            for item in extra_paths:
+                points, color = item[0], item[1]
                 label = item[2] if len(item) > 2 else None
                 har_labels = har_labels or bool(label)
-                if punkter:
-                    punkter_skaleret = [omskaler(p) for p in punkter]
-                    ax.plot([p[0] for p in punkter_skaleret], [p[1] for p in punkter_skaleret],
-                            color=farve, linewidth=1.5, alpha=0.85, label=label)
-                    ax.plot([punkter_skaleret[-1][0]], [punkter_skaleret[-1][1]], 'o', color=farve, markersize=6, zorder=5)
+                if points:
+                    points_scaled = [omskaler(p) for p in points]
+                    ax.plot([p[0] for p in points_scaled], [p[1] for p in points_scaled],
+                            color=color, linewidth=1.5, alpha=0.85, label=label)
+                    ax.plot([points_scaled[-1][0]], [points_scaled[-1][1]], 'o', color=color, markersize=6, zorder=5)
             if har_labels:
                 ax.legend(fontsize=8, loc='best')
         sted = None
         if path:
-            path_skaleret = [omskaler(p) for p in path]
-            a_vals = [p[0] for p in path_skaleret]
-            b_vals = [p[1] for p in path_skaleret]
+            path_scaled = [omskaler(p) for p in path]
+            a_vals = [p[0] for p in path_scaled]
+            b_vals = [p[1] for p in path_scaled]
             ax.plot(a_vals, b_vals, color='white', linewidth=1.5, alpha=0.8)
             ax.plot([a_vals[-1]], [b_vals[-1]], 'o', color='tomato', markersize=10, zorder=5)
             sted = (a_vals[-1], b_vals[-1])
-        elif punkt is not None:
-            punkt_skaleret = omskaler(punkt)
-            ax.plot([punkt_skaleret[0]], [punkt_skaleret[1]], 'o', color='tomato', markersize=10, zorder=5)
-            sted = punkt_skaleret
+        elif point is not None:
+            point_scaled = omskaler(point)
+            ax.plot([point_scaled[0]], [point_scaled[1]], 'o', color='tomato', markersize=10, zorder=5)
+            sted = point_scaled
 
-        def tegn_pil(oprindelse, grad_a, grad_b, farve, alpha=1.0, zorder=7):
+        def draw_pil(oprindelse, grad_a, grad_b, color, alpha=1.0, zorder=7):
             # tolerance i stedet for præcis 0-tjek: ved den optimale løsning er gradienten
             # matematisk 0, men flydende-komma-regning giver typisk noget i stil med 1e-14
             if abs(grad_a) <= 1e-9 and abs(grad_b) <= 1e-9:
@@ -925,7 +948,7 @@ def loss_kontur(loss_fn, a_range, b_range, resolution=60, punkt=None, path=None,
             spids = (oprindelse[0] + grad_a, oprindelse[1] + grad_b)
             ann = ax.annotate('', xy=spids, xytext=oprindelse,
                          annotation_clip=False,  # ellers tegnes pilen slet ikke hvis den rager uden for a/b_range
-                         arrowprops=dict(facecolor=farve, edgecolor='black', alpha=alpha,
+                         arrowprops=dict(facecolor=color, edgecolor='black', alpha=alpha,
                                           linewidth=1.5, width=3, headwidth=10, headlength=10),
                          zorder=zorder)
             # skær pilen af ved panelets egen kant — ellers kan en stor gradient
@@ -933,17 +956,17 @@ def loss_kontur(loss_fn, a_range, b_range, resolution=60, punkt=None, path=None,
             ann.arrow_patch.set_clip_path(ax.patch)
 
         if gradient is not None and sted is not None:
-            tegn_pil(sted, gradient[0], gradient[1], gradient_farve)
-        if ekstra_pile:
+            draw_pil(sted, gradient[0], gradient[1], gradient_color)
+        if extra_arrows:
             # zorder=8 (over den primære 'gradient's 7): ekstra-pile er typisk den mere
             # specifikke/interessante af de to (fx en lille, præcis pil oveni en stor,
             # generel baggrunds-pil) og skal kunne ses selvom den ligger inden i den store.
-            for a_p, b_p, grad_a, grad_b, farve, alpha in ekstra_pile:
-                tegn_pil(omskaler((a_p, b_p)), grad_a, grad_b, farve, alpha=alpha, zorder=8)
-    return _Panel(tegn, figsize=(6, 5))
+            for a_p, b_p, grad_a, grad_b, color, alpha in extra_arrows:
+                draw_pil(omskaler((a_p, b_p)), grad_a, grad_b, color, alpha=alpha, zorder=8)
+    return _Panel(draw, figsize=(6, 5))
 
 
-def vektor_vifte(par, sum_vektor=None, titel=None, original_farve='gray', skaleret_farve='white', sum_farve='orange', margin_andel=0.3):
+def vector_fan(pair, sum_vector=None, title=None, original_color='gray', scaled_color='white', sum_color='orange', margin_fraction=0.3):
     """
     Tegner en 'vifte' af vektor-PAR fra samme udgangspunkt (0, 0) — på sit EGET, tomme
     koordinatsystem der selv skalerer til at passe vektorernes egen størrelse, IKKE oven på
@@ -967,55 +990,55 @@ def vektor_vifte(par, sum_vektor=None, titel=None, original_farve='gray', skaler
     baggrund, ikke det zoomen skal følge. Det giver et stabilt, forudsigeligt zoom-niveau selv
     når gradientstørrelsen vokser og falder undervejs (fx når man slipper ud af et lokalt minimum).
     """
-    def tegn(ax):
-        nu_punkter = [skal for _, skal in par] + [(0.0, 0.0)]
-        if sum_vektor is not None:
-            nu_punkter.append(sum_vektor)
-        xs = [p[0] for p in nu_punkter]
-        ys = [p[1] for p in nu_punkter]
-        største_reference = max((max(abs(dx_o), abs(dy_o)) for (dx_o, dy_o), _ in par), default=1.0)
-        margin = margin_andel * største_reference
+    def draw(ax):
+        now_points = [skal for _, skal in pair] + [(0.0, 0.0)]
+        if sum_vector is not None:
+            now_points.append(sum_vector)
+        xs = [p[0] for p in now_points]
+        ys = [p[1] for p in now_points]
+        largest_reference = max((max(abs(dx_o), abs(dy_o)) for (dx_o, dy_o), _ in pair), default=1.0)
+        margin = margin_fraction * largest_reference
 
         x_midt, y_midt = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
         halv_side = max(max(xs) - min(xs), max(ys) - min(ys)) / 2 + margin
         ax.set_xlim(x_midt - halv_side, x_midt + halv_side)
         ax.set_ylim(y_midt - halv_side, y_midt + halv_side)
 
-        def tegn_pil(dx, dy, farve, kant, alpha, bredde, hovedbredde, hovedlængde, zorder):
+        def draw_pil(dx, dy, color, edge, alpha, width, hovedbredde, main_length, zorder):
             if abs(dx) <= 1e-12 and abs(dy) <= 1e-12:
                 return
             ann = ax.annotate('', xy=(dx, dy), xytext=(0, 0), annotation_clip=False,
-                         arrowprops=dict(facecolor=farve, edgecolor=kant, alpha=alpha,
-                                          linewidth=bredde, width=bredde * 2.5,
-                                          headwidth=hovedbredde, headlength=hovedlængde),
+                         arrowprops=dict(facecolor=color, edgecolor=edge, alpha=alpha,
+                                          linewidth=width, width=width * 2.5,
+                                          headwidth=hovedbredde, headlength=main_length),
                          zorder=zorder)
             ann.arrow_patch.set_clip_path(ax.patch)  # klip pænt ved kanten i stedet for at forsvinde/flyde ud
 
-        for (dx_o, dy_o), (dx_s, dy_s) in par:
-            tegn_pil(dx_o, dy_o, original_farve, original_farve, 0.5, 1.0, 6, 6, zorder=3)
-            tegn_pil(dx_s, dy_s, skaleret_farve, 'black', 0.9, 1.2, 8, 8, zorder=5)
-        if sum_vektor is not None:
-            tegn_pil(sum_vektor[0], sum_vektor[1], sum_farve, 'black', 1.0, 1.5, 10, 10, zorder=6)
+        for (dx_o, dy_o), (dx_s, dy_s) in pair:
+            draw_pil(dx_o, dy_o, original_color, original_color, 0.5, 1.0, 6, 6, zorder=3)
+            draw_pil(dx_s, dy_s, scaled_color, 'black', 0.9, 1.2, 8, 8, zorder=5)
+        if sum_vector is not None:
+            draw_pil(sum_vector[0], sum_vector[1], sum_color, 'black', 1.0, 1.5, 10, 10, zorder=6)
 
         ax.axhline(0, color='gray', linewidth=0.6, zorder=0)
         ax.axvline(0, color='gray', linewidth=0.6, zorder=0)
         ax.set_aspect('equal', adjustable='box')
-        ax.set_title(titel or 'vektorer')
+        ax.set_title(title or 'vektorer')
         ax.set_xlabel('Δa')
         ax.set_ylabel('Δb')
-    return _Panel(tegn, figsize=(5, 5))
+    return _Panel(draw, figsize=(5, 5))
 
 
-def loss_3d(loss_fn, a_range, b_range, resolution=60, punkt=None):
+def loss_3d(loss_fn, a_range, b_range, resolution=60, point=None):
     """Samme loss-flade som loss_kontur, men som en 3D-flade. Se loss_kontur for detaljer om loss_fn."""
-    def tegn(ax):
+    def draw(ax):
         A, B, L = _loss_grid(loss_fn, a_range, b_range, resolution)
-        _tegn_3d(ax, A, B, L)
-        if punkt is not None:
-            a, b = punkt
+        _draw_3d(ax, A, B, L)
+        if point is not None:
+            a, b = point
             ax.scatter([a], [b], [loss_fn(a, b)], color='tomato', s=80, zorder=10,
                        depthshade=False, edgecolor='black', linewidth=0.5)
-    return _Panel(tegn, figsize=(6, 5), projection='3d')
+    return _Panel(draw, figsize=(6, 5), projection='3d')
 
 
 def modelfit(*args, x_range=None, y_range=None):
@@ -1028,25 +1051,25 @@ def modelfit(*args, x_range=None, y_range=None):
     forskellige parametre — ellers deformeres kvadraterne når fejlens størrelse ændrer sig.
     Kør alene for at se plottet, eller giv den til display() sammen med andre paneler.
     """
-    *params, punkter = args
-    xs = np.array([p[0] for p in punkter], dtype=float)
-    ys = np.array([p[1] for p in punkter], dtype=float)
+    *params, points = args
+    xs = np.array([p[0] for p in points], dtype=float)
+    ys = np.array([p[1] for p in points], dtype=float)
     # uden eksplicit x_range/y_range: lad _tegn_kvadrater_panel selv beregne plads til
     # fejl-kvadraterne (ellers bliver de skåret af når fejlen er stor)
     x_min, x_max = x_range if x_range else (None, None)
     y_min, y_max = y_range if y_range else (None, None)
 
-    def tegn(ax):
-        errors = _tegn_kvadrater_panel(ax, xs, ys, params, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max)
+    def draw(ax):
+        errors = _draw_kvadrater_panel(ax, xs, ys, params, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max)
         ax.set_aspect('equal', adjustable='box')
         loss = float(np.sum(errors**2))
-        label = '  '.join(f'{navn}={v:.2f}' for navn, v in zip('abc', params))
+        label = '  '.join(f'{name}={v:.2f}' for name, v in zip('abc', params))
         ax.set_title(f'{label}   loss={loss:.2f}')
         ax.legend(fontsize=9)
-    return _Panel(tegn, figsize=(6, 5))
+    return _Panel(draw, figsize=(6, 5))
 
 
-def linalg_losning(A, y, AtA, Aty, AtA_inv, w, fmt="{:.2f}"):
+def linalg_solution(A, y, AtA, Aty, AtA_inv, w, fmt="{:.2f}"):
     """
     Visualiserer regnestykket bag den analytiske løsning, byggesten for byggesten —
     I bygger selv A, y, AᵀA, Aᵀy og w i cellen (se opgave 1_4/closed_form_linje for
@@ -1066,43 +1089,43 @@ def linalg_losning(A, y, AtA, Aty, AtA_inv, w, fmt="{:.2f}"):
          ("symbol", "="), ("matrix", "", ["a", "b"], None)],
     ]
 
-    def tegn(ax):
+    def draw(ax):
         ax.axis('off')
         margin  = 0.85
-        højder  = [max(_matrix_hojde(item[2]) for item in row if item[0] == "matrix")
+        heights  = [max(_matrix_hojde(item[2]) for item in row if item[0] == "matrix")
                    for row in rows_spec]
-        y_cursor = sum(højder) / 2 + margin * (len(rows_spec) - 1) / 2
-        centre = []
-        for h in højder:
+        y_cursor = sum(heights) / 2 + margin * (len(rows_spec) - 1) / 2
+        centers = []
+        for h in heights:
             y_cursor -= h / 2
-            centre.append(y_cursor)
+            centers.append(y_cursor)
             y_cursor -= h / 2 + margin
 
-        bredde = 0.0
-        for row, yc in zip(rows_spec, centre):
+        width = 0.0
+        for row, yc in zip(rows_spec, centers):
             x = 0.0
             for item in row:
                 if item[0] == "matrix":
                     item_fmt = item[3] if len(item) > 3 else fmt
-                    x = _tegn_matrix(ax, x, yc, item[1], item[2], item_fmt)
+                    x = _draw_matrix(ax, x, yc, item[1], item[2], item_fmt)
                 else:
-                    x = _tegn_symbol(ax, x, yc, item[1])
-            bredde = max(bredde, x)
+                    x = _draw_symbol(ax, x, yc, item[1])
+            width = max(width, x)
 
-        ax.set_xlim(-0.3, bredde + 0.3)
-        ax.set_ylim(centre[-1] - højder[-1] / 2 - 0.4, centre[0] + højder[0] / 2 + 0.4)
-    return _Panel(tegn, figsize=(11, 6.5))
+        ax.set_xlim(-0.3, width + 0.3)
+        ax.set_ylim(centers[-1] - heights[-1] / 2 - 0.4, centers[0] + heights[0] / 2 + 0.4)
+    return _Panel(draw, figsize=(11, 6.5))
 
 
-def loss_over_tid(losses):
+def loss_over_time(losses):
     """Viser loss pr. skridt som en kurve, med en markør ved det seneste skridt."""
-    def tegn(ax):
+    def draw(ax):
         ax.plot(range(len(losses)), losses, color='lightgray', linewidth=1.5)
         ax.plot([len(losses) - 1], [losses[-1]], 'o', color='tomato', markersize=8, zorder=5)
         ax.set_xlabel('skridt')
         ax.set_ylabel('loss')
         ax.set_title('Squared loss over tid')
-    return _Panel(tegn, figsize=(6, 4.5))
+    return _Panel(draw, figsize=(6, 4.5))
 
 
 def animate(paneler_per_frame, interval=120, figsize=None, max_frames=25):
@@ -1127,12 +1150,12 @@ def animate(paneler_per_frame, interval=120, figsize=None, max_frames=25):
     paneler er stadig billig — sæt max_frames=None for at tegne dem alle alligevel.
     """
     if max_frames and len(paneler_per_frame) > max_frames:
-        skridt = -(-len(paneler_per_frame) // max_frames)  # rundet op
-        udvalgte = list(paneler_per_frame[::skridt])
-        if udvalgte[-1] is not paneler_per_frame[-1]:
-            udvalgte.append(paneler_per_frame[-1])
-        interval = interval * skridt
-        paneler_per_frame = udvalgte
+        step = -(-len(paneler_per_frame) // max_frames)  # rundet op
+        selected = list(paneler_per_frame[::step])
+        if selected[-1] is not paneler_per_frame[-1]:
+            selected.append(paneler_per_frame[-1])
+        interval = interval * step
+        paneler_per_frame = selected
 
     n = len(paneler_per_frame[0])
     fig  = plt.figure(figsize=figsize or (6 * n, 5))
@@ -1156,10 +1179,10 @@ def animate(paneler_per_frame, interval=120, figsize=None, max_frames=25):
                 for artist in forrige_artists[idx]:
                     if artist in ax.get_children():
                         artist.remove()
-            før = set(ax.get_children())
+            before = set(ax.get_children())
             ax.set_position(pos)
-            panel._tegn(ax)
-            forrige_artists[idx] = [a for a in ax.get_children() if a not in før]
+            panel._draw(ax)
+            forrige_artists[idx] = [a for a in ax.get_children() if a not in before]
         return axes
 
     anim = FuncAnimation(fig, _animate, frames=len(paneler_per_frame), interval=interval, blit=False)
@@ -1171,14 +1194,14 @@ def animate(paneler_per_frame, interval=120, figsize=None, max_frames=25):
 
 # ── Feedback-plots til regression_test.py ─────────────────────────────────
 
-def feedback_kurve(punkter, got_params, exp_params):
+def feedback_curve(points, got_params, exp_params):
     """
     Feedback for opg1/opg2: viser datapunkter, studentens kurve (rød stiplet)
     og facit-kurven (grøn).
     Bruges ved fejl i linje- og parabeL-opgaver.
     """
-    xs = [p[0] for p in punkter]
-    ys = [p[1] for p in punkter]
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
     pad    = max((max(xs) - min(xs)) * 0.2, 0.5)
     x_min  = min(xs) - pad
     x_max  = max(xs) + pad
@@ -1188,13 +1211,13 @@ def feedback_kurve(punkter, got_params, exp_params):
     ax.scatter(xs, ys, color='black', s=60, zorder=5, label='punkter')
 
     try:
-        ax.plot(x_line, _eval_kurve(got_params, x_line), 'r--', linewidth=2,
-                label=_kurve_label(got_params, prefix="din"))
+        ax.plot(x_line, _eval_curve(got_params, x_line), 'r--', linewidth=2,
+                label=_curve_label(got_params, prefix="din"))
     except Exception:
         pass
 
-    ax.plot(x_line, _eval_kurve(exp_params, x_line), color='green', linewidth=2,
-            label=_kurve_label(exp_params, prefix="korrekt"))
+    ax.plot(x_line, _eval_curve(exp_params, x_line), color='green', linewidth=2,
+            label=_curve_label(exp_params, prefix="korrekt"))
 
     ax.set_xlabel('x'); ax.set_ylabel('y')
     ax.legend(fontsize=9)
@@ -1202,7 +1225,7 @@ def feedback_kurve(punkter, got_params, exp_params):
     plt.show()
 
 
-def feedback_haeldning(f, x, got, exp, span=None):
+def feedback_slope(f, x, got, exp, span=None):
     """
     Feedback for opg4's differentiations-opgaver: viser grafen for f (forskriften),
     punktet (x, f(x)), og hældningen som en pil igennem punktet — jeres svar (rød)
@@ -1225,11 +1248,11 @@ def feedback_haeldning(f, x, got, exp, span=None):
     ax.autoscale(False)  # pilene må ikke skubbe grafen ud af syne, selv hvis hældningen er meget forkert
 
     dx = span * 0.3
-    for hældning, farve, navn in [(exp, 'green', 'korrekt'), (got, 'tomato', 'din')]:
-        ax.annotate('', xy=(x + dx, y + hældning * dx), xytext=(x, y),
-                     arrowprops=dict(facecolor=farve, edgecolor=farve, linewidth=2,
+    for slope, color, name in [(exp, 'green', 'korrekt'), (got, 'tomato', 'din')]:
+        ax.annotate('', xy=(x + dx, y + slope * dx), xytext=(x, y),
+                     arrowprops=dict(facecolor=color, edgecolor=color, linewidth=2,
                                       width=2.5, headwidth=9, headlength=10), zorder=6)
-        ax.plot([], [], color=farve, linewidth=2.5, label=f"{navn}: f'({x:.2g}) = {hældning:.3g}")
+        ax.plot([], [], color=color, linewidth=2.5, label=f"{name}: f'({x:.2g}) = {slope:.3g}")
 
     ax.set_xlabel('x'); ax.set_ylabel('y')
     ax.legend(fontsize=9)
@@ -1265,10 +1288,10 @@ def feedback_gradient_3d(f, x, y, got, exp, span=None, resolution=40):
     ax.scatter([x], [y], [z], color='black', s=50, zorder=10, depthshade=False, edgecolor='black')
 
     d = span * 0.35
-    for (gx, gy), farve, navn in [(exp, 'green', 'korrekt'), (got, 'tomato', 'din')]:
+    for (gx, gy), color, name in [(exp, 'green', 'korrekt'), (got, 'tomato', 'din')]:
         dz = gx * d + gy * d  # stigningen langs tangentplanen i den retning
-        ax.quiver(x, y, z, d, d, dz, color=farve, linewidth=2.5, arrow_length_ratio=0.2, zorder=11,
-                   label=f"{navn}: ∇f = ({gx:.2g}, {gy:.2g})")
+        ax.quiver(x, y, z, d, d, dz, color=color, linewidth=2.5, arrow_length_ratio=0.2, zorder=11,
+                   label=f"{name}: ∇f = ({gx:.2g}, {gy:.2g})")
 
     ax.set_xlabel('x'); ax.set_ylabel('y'); ax.set_zlabel('f(x,y)')
     ax.legend(fontsize=8)
@@ -1276,17 +1299,17 @@ def feedback_gradient_3d(f, x, y, got, exp, span=None, resolution=40):
     plt.show()
 
 
-def feedback_loss(model_params, punkter, got_loss, exp_loss):
+def feedback_loss(model_params, points, got_loss, exp_loss):
     """
     Feedback for opg3/opg4: viser kurven, punkterne og et kvadrat per fejl.
     Kvadratets areal = fejlens bidrag til squared loss.
     Bruges ved fejl i loss-beregnings-opgaver. model_params er (a,b) eller (a,b,c).
     """
-    xs = np.array([p[0] for p in punkter], dtype=float)
-    ys = np.array([p[1] for p in punkter], dtype=float)
+    xs = np.array([p[0] for p in points], dtype=float)
+    ys = np.array([p[1] for p in points], dtype=float)
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    _tegn_kvadrater_panel(ax, xs, ys, model_params)
+    _draw_kvadrater_panel(ax, xs, ys, model_params)
     ax.set_title(
         f'Kvadraternes arealer summer til: {got_loss:.4f}\n'
         f'Korrekt loss = {exp_loss:.4f}'
@@ -1296,7 +1319,7 @@ def feedback_loss(model_params, punkter, got_loss, exp_loss):
     plt.show()
 
 
-def feedback_metode(loss_fn, start, got, exp, margin=1.4, resolution=60):
+def feedback_method(loss_fn, start, got, exp, margin=1.4, resolution=60):
     """
     Feedback for træningsloop-blokkens gd/momentum/rmsprop/adam-opgaver: viser loss-landskabet
     I faktisk blev testet på, med start (sort), jeres endepunkt (rød) og facit-endepunktet
@@ -1316,7 +1339,7 @@ def feedback_metode(loss_fn, start, got, exp, margin=1.4, resolution=60):
 
     fig, ax = plt.subplots(figsize=(6, 5))
     A, B, L = _loss_grid(loss_fn, a_range, b_range, resolution)
-    _tegn_kontur(ax, A, B, L, colorbar=True, titel='Loss (kontur)')
+    _draw_kontur(ax, A, B, L, colorbar=True, title='Loss (kontur)')
     ax.set_xlim(a_range); ax.set_ylim(b_range)
     ax.plot([a0, ga], [b0, gb], color='tomato', linewidth=2, marker='o', markersize=6, label='jeres svar')
     ax.plot([a0, ea], [b0, eb], color='limegreen', linewidth=2, marker='o', markersize=6, label='facit')
@@ -1332,14 +1355,14 @@ def feedback_metode(loss_fn, start, got, exp, margin=1.4, resolution=60):
 # et fast antal navngivne parametre (a,b,c) — den er bygget af en liste af
 # ReLU'er, eller er en torch-model, så den tages ind som en vilkårlig model_fn.)
 
-def curve_fit(model_fn, punkter, model_label="model", x_range=None, y_range=None):
+def curve_fit(model_fn, points, model_label="model", x_range=None, y_range=None):
     """
     Ligesom modelfit ovenfor, men virker med EN VILKÅRLIG model_fn(x) -> y i stedet
     for kun linjer/parabler med et fast antal navngivne parametre. Bruges når
     modellen er bygget af flere ReLU'er (opgave 2), eller er en torch/nn.Module-model.
     """
-    xs = np.array([p[0] for p in punkter], dtype=float)
-    ys = np.array([p[1] for p in punkter], dtype=float)
+    xs = np.array([p[0] for p in points], dtype=float)
+    ys = np.array([p[1] for p in points], dtype=float)
     y_preds = np.array([float(model_fn(x)) for x in xs])
     errors = y_preds - ys
 
@@ -1347,7 +1370,7 @@ def curve_fit(model_fn, punkter, model_label="model", x_range=None, y_range=None
     x_line = np.linspace(x_min, x_max, 300)
     y_line = np.array([float(model_fn(x)) for x in x_line])
 
-    def tegn(ax):
+    def draw(ax):
         ax.plot(x_line, y_line, color='royalblue', linewidth=2, label=model_label, zorder=2)
         for x, y, y_pred, e in zip(xs, ys, y_preds, errors):
             side = abs(float(e))
@@ -1368,17 +1391,17 @@ def curve_fit(model_fn, punkter, model_label="model", x_range=None, y_range=None
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.legend(fontsize=9)
-    return _Panel(tegn, figsize=(6, 5))
+    return _Panel(draw, figsize=(6, 5))
 
 
-def feedback_relu_fn(punkter, got_fn, exp_fn, x_range=None):
+def feedback_relu_fn(points, got_fn, exp_fn, x_range=None):
     """
     Feedback for opgave 1's "forbind punkterne"-opgaver: viser datapunkterne,
     studentens kurve (rød stiplet) og facit-kurven (grøn) — samme idé som
     feedback_kurve. got_fn/exp_fn er kaldbare funktioner af x.
     """
-    xs = [p[0] for p in punkter]
-    ys = [p[1] for p in punkter]
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
     if x_range:
         x_min, x_max = x_range
     else:
@@ -1405,25 +1428,25 @@ def feedback_relu_fn(punkter, got_fn, exp_fn, x_range=None):
     plt.show()
 
 
-def relu_komponenter(weights, biases, x_range=(-2, 4), c=0.0):
+def relu_components(weights, biases, x_range=(-2, 4), c=0.0):
     """
     Viser hver vægtet ReLU-komponent w_i·relu(x−b_i) for sig (stiplet, tynd),
     og deres sum c + Σ w_i·relu(x−b_i) (fuld, sort linje) — samme model som opgave 2_1.
     """
     x = np.linspace(*x_range, 300)
 
-    def tegn(ax):
+    def draw(ax):
         total = np.full_like(x, float(c))
         for i, (w, b) in enumerate(zip(weights, biases)):
-            komponent = w * np.maximum(0, x - b)
-            total = total + komponent
-            ax.plot(x, komponent, '--', linewidth=1.2, alpha=0.7, label=f'w{i}·relu(x−b{i})')
+            component = w * np.maximum(0, x - b)
+            total = total + component
+            ax.plot(x, component, '--', linewidth=1.2, alpha=0.7, label=f'w{i}·relu(x−b{i})')
         ax.plot(x, total, color='black', linewidth=2.5, label='sum (modellen)')
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.legend(fontsize=8)
         ax.set_title('ReLU-komponenter og deres sum')
-    return _Panel(tegn, figsize=(6.5, 5))
+    return _Panel(draw, figsize=(6.5, 5))
 
 
 """
@@ -1434,7 +1457,7 @@ som egen_gd_metode_v1, v2, ... i takt med at de bygger flere idéer ind (momentu
 kørt på tværs af 4 landskaber × 4 udvalgte startpunkter.
 """
 
-class BudgetOverskredet(Exception):
+class BudgetExceeded(Exception):
     """Rejses når en gd_metode-funktion har brugt alle sine kald til loss/gradient."""
     pass
 
@@ -1444,37 +1467,37 @@ class BudgetOverskredet(Exception):
 # eleverne selv kan kalde .backward() på det). De analytiske gradienter herunder er PRIVATE:
 # de bruges kun til at finde landskabets minimum ved import — eleverne får kun loss.
 
-def _generer_linje_punkter(n=100, a_sand=1.2, b_sand=1.5, x_range=(0, 10), stoej=0.6, seed=42):
+def _generate_line_points(n=100, a_true=1.2, b_true=1.5, x_range=(0, 10), noise=0.6, seed=42):
     """~100 punkter normalfordelt omkring en linje — landskabet til minibatch/SGD-afsnittet,
     og konkurrencens 'linjefitting'-landskab."""
     rng = np.random.default_rng(seed)
     xs = rng.uniform(*x_range, n)
-    ys = a_sand * xs + b_sand + rng.normal(0, stoej, n)
+    ys = a_true * xs + b_true + rng.normal(0, noise, n)
     return list(zip(xs.tolist(), ys.tolist()))
 
 
-LINJE_PUNKTER = _generer_linje_punkter()
+LINE_POINTS = _generate_line_points()
 
 
-def _linje_loss(a, b, punkter=LINJE_PUNKTER):
-    n = len(punkter)
-    return sum((a * x + b - y) ** 2 for x, y in punkter) / n
+def _line_loss(a, b, points=LINE_POINTS):
+    n = len(points)
+    return sum((a * x + b - y) ** 2 for x, y in points) / n
 
 
-def _linje_gradient(a, b, punkter=LINJE_PUNKTER):
-    n = len(punkter)
+def _line_gradient(a, b, points=LINE_POINTS):
+    n = len(points)
     da, db = 0.0, 0.0
-    for x, y in punkter:
-        fejl = a * x + b - y
-        da += 2 * fejl * x
-        db += 2 * fejl
+    for x, y in points:
+        error = a * x + b - y
+        da += 2 * error * x
+        db += 2 * error
     return da / n, db / n
 
 
-def _linje_minimum(punkter=LINJE_PUNKTER):
+def _line_minimum(points=LINE_POINTS):
     """Normalligningerne — samme lukkede løsning som regression_facit."""
-    xs = np.array([p[0] for p in punkter])
-    ys = np.array([p[1] for p in punkter])
+    xs = np.array([p[0] for p in points])
+    ys = np.array([p[1] for p in points])
     A = np.column_stack([xs, np.ones_like(xs)])
     a, b = np.linalg.inv(A.T @ A) @ A.T @ ys
     return float(a), float(b)
@@ -1483,8 +1506,8 @@ def _linje_minimum(punkter=LINJE_PUNKTER):
 # offentlige navne (uden understreg) til minibatch-afsnittet — "givet" infrastruktur, ligesom
 # sesy_viz's egne funktioner: I skal ikke selv udlede MSE-gradienten igen, den kender I allerede
 # fra regression — brug den bare på et TILFÆLDIGT UDPLUK af punkter i stedet for alle.
-linje_loss = _linje_loss
-linje_gradient = _linje_gradient
+line_loss = _line_loss
+line_gradient = _line_gradient
 
 
 def _plateau_led(t, k):
@@ -1527,7 +1550,7 @@ def _rosenbrock_gradient(a, b):
 
 # ── Registrering: her tilføjes nye landskaber ────────────────────────────
 
-def _multistart_minimum(loss, gradient, view, forsoeg=40, skridt=3000, lr=0.01, seed=0):
+def _multistart_minimum(loss, gradient, view, attempt=40, step=3000, lr=0.01, seed=0):
     """
     Finder (tilnærmet) det globale minimum ved almindelig gradient descent fra mange
     tilfældige startpunkter, og beholder det bedste resultat. Køres ÉN gang ved import,
@@ -1535,30 +1558,30 @@ def _multistart_minimum(loss, gradient, view, forsoeg=40, skridt=3000, lr=0.01, 
     """
     rng = np.random.default_rng(seed)
     a_min, a_max, b_min, b_max = view
-    bedste = (None, None, np.inf)
-    for _ in range(forsoeg):
+    best = (None, None, np.inf)
+    for _ in range(attempt):
         a = rng.uniform(a_min, a_max)
         b = rng.uniform(b_min, b_max)
-        for _ in range(skridt):
+        for _ in range(step):
             da, db = gradient(a, b)
             a -= lr * da
             b -= lr * db
             if not (np.isfinite(a) and np.isfinite(b)):
                 break
         l = loss(a, b)
-        if np.isfinite(l) and l < bedste[2]:
-            bedste = (a, b, l)
-    return bedste[0], bedste[1]
+        if np.isfinite(l) and l < best[2]:
+            best = (a, b, l)
+    return best[0], best[1]
 
 
-def _byg_landskab(navn, loss, gradient, a_range, b_range, minimum=None):
+def _build_landscape(name, loss, gradient, a_range, b_range, minimum=None):
     """minimum: giv (a*,b*) hvis den kendes analytisk — ellers findes den selv (se
     _multistart_minimum). Sådan tilføjes et nyt landskab: bare loss+gradient+view."""
     if minimum is None:
         minimum = _multistart_minimum(loss, gradient, (*a_range, *b_range))
     a_star, b_star = minimum
     return {
-        "navn": navn, "loss": loss,
+        "name": name, "loss": loss,
         "a_range": a_range, "b_range": b_range,
         "minimum": (a_star, b_star), "min_loss": float(loss(a_star, b_star)),
     }
@@ -1566,14 +1589,14 @@ def _byg_landskab(navn, loss, gradient, a_range, b_range, minimum=None):
 
 _platau1d_a_star, _ = _multistart_minimum(_platau1d_loss, _platau1d_gradient, (-2.1, 1.1, -2.1, 1.1))
 
-LANDSKABER = [
-    _byg_landskab("linjefitting", _linje_loss, _linje_gradient, (-1, 3), (-3, 3), minimum=_linje_minimum()),
+LANDSCAPES = [
+    _build_landscape("linjefitting", _line_loss, _line_gradient, (-1, 3), (-3, 3), minimum=_line_minimum()),
     # b-view centreret om 0 (b²-skålens midterlinje) — anderledes range end a, som er valgt til
     # at ramme a-aksens 2 lokale minima. b-aksens minimum er PRÆCIST 0.0, låst eksplicit i
     # stedet for at stole på multistart-søgningens numeriske tilnærmelse for den akse.
-    _byg_landskab("plateau (1D)", _platau1d_loss, _platau1d_gradient, (-2.1, 1.1), (-1, 1), minimum=(_platau1d_a_star, 0.0)),
-    _byg_landskab("plateau (2D)", _platau2d_loss, _platau2d_gradient, (-2.1, 1.1), (-2.1, 1.1)),
-    _byg_landskab("rosenbrock", _rosenbrock_loss, _rosenbrock_gradient, (-1.5, 1.5), (-1, 2), minimum=(1.0, 1.0)),
+    _build_landscape("plateau (1D)", _platau1d_loss, _platau1d_gradient, (-2.1, 1.1), (-1, 1), minimum=(_platau1d_a_star, 0.0)),
+    _build_landscape("plateau (2D)", _platau2d_loss, _platau2d_gradient, (-2.1, 1.1), (-2.1, 1.1)),
+    _build_landscape("rosenbrock", _rosenbrock_loss, _rosenbrock_gradient, (-1.5, 1.5), (-1, 2), minimum=(1.0, 1.0)),
 ]
 
 
@@ -1583,7 +1606,7 @@ LANDSKABER = [
 # forskellig opførsel: fx et sted alle metoder er enige, et sted de er dybt uenige (en metode
 # vinder klart), osv. Se intro-ml-plan-memoen for den fulde udforskning bag disse tal.
 
-INTERESSANTE_STARTPUNKTER = {
+INTERESTING_START_POINTS = {
     "linjefitting":  [(-0.6, -2.4), (1.0, 0.0), (2.2, 1.8), (1.6, 0.9)],
     "plateau (1D)":  [(-1.78, -0.8), (1.0, 0.6), (-0.5, 0.0), (-0.3, -0.8)],
     "plateau (2D)":  [(-1.78, 0.78), (0.78, -1.78), (-0.5, -0.5), (-0.5, -1.78)],
@@ -1603,10 +1626,10 @@ def _sikker_loss(fn, a, b):
             return float("nan")
 
 
-_AFSTAND_GRAENSE = 1000  # et kald om et punkt længere væk end dette fra landskabets midte ansés som useriøst
+_DISTANCE_LIMIT = 1000  # et kald om et punkt længere væk end dette fra landskabets midte ansés som useriøst
 
 
-def instrumenter(landskab, budget=100, afstand_graense=_AFSTAND_GRAENSE):
+def instrument(landscape, budget=100, distance_threshold_boundary=_DISTANCE_LIMIT):
     """
     Pakker landskabets loss ind, så hvert kald tælles og huskes (positioner undersøgt).
     Eleverne får KUN loss(a,b) — gradienten finder de selv med .backward(). Hvert loss-kald
@@ -1623,63 +1646,63 @@ def instrumenter(landskab, budget=100, afstand_graense=_AFSTAND_GRAENSE):
     loss returnerer landskabets loss uden om _sikker_loss, så a/b-tensorer med requires_grad
     beholder deres graf og .backward() virker. Positionerne huskes som almindelige tal.
     """
-    a0, a1 = landskab["a_range"]
-    b0, b1 = landskab["b_range"]
+    a0, a1 = landscape["a_range"]
+    b0, b1 = landscape["b_range"]
     centrum_a, centrum_b = (a0 + a1) / 2, (b0 + b1) / 2
 
-    loss_punkter = []
+    loss_points = []
     tilstand = {"antal": 0, "sidste": None, "for_langt_vaek": False}
 
     def _brug_et_kald(a, b):
-        afstand = ((a - centrum_a) ** 2 + (b - centrum_b) ** 2) ** 0.5
-        if afstand > afstand_graense:
-            print(f"⚠ punktet ({a:.1f}, {b:.1f}) er {afstand:.0f} fra landskabets midte — "
+        distance = ((a - centrum_a) ** 2 + (b - centrum_b) ** 2) ** 0.5
+        if distance > distance_threshold_boundary:
+            print(f"⚠ punktet ({a:.1f}, {b:.1f}) er {distance:.0f} fra landskabets midte — "
                   f"det virker useriøst langt væk, stopper her.")
             tilstand["for_langt_vaek"] = True
-            raise BudgetOverskredet("punkt for langt fra landskabet")
+            raise BudgetExceeded("punkt for langt fra landskabet")
         tilstand["antal"] += 1
         if tilstand["antal"] > budget:
             print(f"⚠ I har brugt alle jeres {budget} loss-kald — "
                   f"bruger punkt nr. {budget} som jeres svar.")
-            raise BudgetOverskredet("budget opbrugt")
+            raise BudgetExceeded("budget opbrugt")
 
-    def _tal(x):
+    def _number(x):
         return x.detach().item() if hasattr(x, "detach") else float(x)
 
     def loss(a, b):
-        av, bv = _tal(a), _tal(b)            # almindelige tal til tælling/logning
+        av, bv = _number(a), _number(b)            # almindelige tal til tælling/logning
         _brug_et_kald(av, bv)
-        v = landskab["loss"](a, b)           # tensoren sendes igennem, så .backward() virker
-        loss_punkter.append((av, bv, _tal(v)))
+        v = landscape["loss"](a, b)           # tensoren sendes igennem, så .backward() virker
+        loss_points.append((av, bv, _number(v)))
         tilstand["sidste"] = (av, bv)
         return v
 
-    return loss, loss_punkter, tilstand
+    return loss, loss_points, tilstand
 
 
-def koer_en_gang(gd_metode, landskab, start, budget=100):
+def run_once(gd_method, landscape, start, budget=100):
     """
     Kør gd_metode(loss, start) ÉN gang på ét landskab, fra ét startpunkt. Returnerer et
     resultat-dict (landskab, start, slut, slut_loss, bedste_loss, loss_punkter) — selve
     visualiseringen af det bygger I i notebook'en.
     """
-    loss, loss_punkter, tilstand = instrumenter(landskab, budget)
+    loss, loss_points, tilstand = instrument(landscape, budget)
     try:
-        slut = gd_metode(loss, start)
-    except BudgetOverskredet:
-        slut = tilstand["sidste"] or start
-    a, b = slut
-    slut_loss = _sikker_loss(landskab["loss"], a, b)
+        end = gd_method(loss, start)
+    except BudgetExceeded:
+        end = tilstand["sidste"] or start
+    a, b = end
+    end_loss = _sikker_loss(landscape["loss"], a, b)
     return {
-        "landskab": landskab["navn"],
-        "a_range": landskab["a_range"], "b_range": landskab["b_range"],
-        "start": start, "slut": (float(a), float(b)),
-        "slut_loss": slut_loss,
-        "bedste_loss": landskab["min_loss"],
+        "landskab": landscape["name"],
+        "a_range": landscape["a_range"], "b_range": landscape["b_range"],
+        "start": start, "end": (float(a), float(b)),
+        "end_loss": end_loss,
+        "best_loss": landscape["min_loss"],
         # True hvis metoden endte langt uden for landskabet (uanset om slut_loss selv er et
         # stort-men-endeligt tal eller nan/inf) — se instrumenter()'s afstands-tjek.
-        "eksploderet": bool(tilstand["for_langt_vaek"]) or not np.isfinite(slut_loss),
-        "loss_punkter": loss_punkter,
+        "exploded": bool(tilstand["for_langt_vaek"]) or not np.isfinite(end_loss),
+        "loss_points": loss_points,
     }
 
 
@@ -1689,31 +1712,31 @@ _PALET = {
     "blaa": "#2a78d6", "groen": "#008300", "magenta": "#e87ba4", "gul": "#eda100",
     "cyan": "#1baf7a", "orange": "#eb6834", "lilla": "#4a3aa7", "roed": "#e34948",
 }
-_KENDTE_METODE_FARVER = {
+_KNOWN_METHOD_COLORS = {
     "gd": _PALET["blaa"], "momentum": _PALET["groen"],
     "rmsprop": _PALET["magenta"], "adam": _PALET["gul"],
 }
-_EKSTRA_FARVE_REKKEFOLGE = [_PALET["cyan"], _PALET["orange"], _PALET["lilla"], _PALET["roed"]]
+_EXTRA_COLOR_ORDER = [_PALET["cyan"], _PALET["orange"], _PALET["lilla"], _PALET["roed"]]
 
 
-def _tildel_farver(navne):
+def _assign_colors(names):
     """Fast farve for gd/momentum/rmsprop/adam (samme farve overalt i notebooken) — egne,
     ukendte metode-navne får en farve fra en fast rækkefølge, i den rækkefølge de optræder."""
-    farver, næste = {}, 0
-    for navn in navne:
-        if navn in farver:
+    colors, next = {}, 0
+    for name in names:
+        if name in colors:
             continue
-        if navn in _KENDTE_METODE_FARVER:
-            farver[navn] = _KENDTE_METODE_FARVER[navn]
+        if name in _KNOWN_METHOD_COLORS:
+            colors[name] = _KNOWN_METHOD_COLORS[name]
         else:
-            farver[navn] = _EKSTRA_FARVE_REKKEFOLGE[næste % len(_EKSTRA_FARVE_REKKEFOLGE)]
-            næste += 1
-    return farver
+            colors[name] = _EXTRA_COLOR_ORDER[next % len(_EXTRA_COLOR_ORDER)]
+            next += 1
+    return colors
 
 
 # ── Sammenlign en liste af metoder på hele konkurrencen, i ét kald ───────
 
-def evaluer_gd_metode(metoder, landskaber=LANDSKABER, budget=100, resolution=30):
+def evaluate_gd_method(methods, landscapes=LANDSCAPES, budget=100, resolution=30):
     """
     Kør en eller flere metoder på tværs af alle landskaber og deres 4 udvalgte startpunkter,
     og vis resultatet som ét grid — én række pr. landskab. Første søjle i hver række er et
@@ -1724,38 +1747,38 @@ def evaluer_gd_metode(metoder, landskaber=LANDSKABER, budget=100, resolution=30)
     — skriv hele listen igen (med alt I vil sammenligne) hver gang I kalder denne, i stedet for
     at bygge videre på en gammel liste.
     """
-    farver = _tildel_farver([navn for navn, _ in metoder])
+    colors = _assign_colors([name for name, _ in methods])
     paneler, row_labels = [], []
 
-    for landskab in landskaber:
-        row_labels.append(landskab["navn"])
-        starts = INTERESSANTE_STARTPUNKTER[landskab["navn"]]
-        resultater = {navn: [koer_en_gang(fn, landskab, start, budget) for start in starts]
-                      for navn, fn in metoder}
+    for landscape in landscapes:
+        row_labels.append(landscape["name"])
+        starts = INTERESTING_START_POINTS[landscape["name"]]
+        results = {name: [run_once(fn, landscape, start, budget) for start in starts]
+                      for name, fn in methods}
 
         # afstand til bedste mulige loss, én liste pr. metode — én værdi pr. udvalgt startpunkt
         # (samme rækkefølge som sti-panelerne herunder), None hvis den kørsel eksploderede.
-        afstande = [
-            [None if r["eksploderet"] else r["slut_loss"] - landskab["min_loss"] for r in resultater[navn]]
-            for navn, _ in metoder
+        distances = [
+            [None if r["exploded"] else r["end_loss"] - landscape["min_loss"] for r in results[name]]
+            for name, _ in methods
         ]
 
         # bar-panelet er den eneste farve/navn-forklaring i rækken (labeled x-akse) — de 4
         # sti-paneler til højre for det holder sig derfor bevidst UDEN egen legend, for ikke at
         # gentage samme 4 navne i alle 20 paneler i gridet.
-        paneler.append(bar_sammenligning(
-            [navn for navn, _ in metoder], afstande, [farver[navn] for navn, _ in metoder],
+        paneler.append(bar_comparison(
+            [name for name, _ in methods], distances, [colors[name] for name, _ in methods],
         ))
 
         for i, start in enumerate(starts):
-            stier = []
-            for navn, _ in metoder:
-                r = resultater[navn][i]
-                sti = [(a, b) for (a, b, _) in r["loss_punkter"]] or [start]
-                stier.append((sti, farver[navn]))
-            paneler.append(loss_kontur(
-                landskab["loss"], landskab["a_range"], landskab["b_range"], resolution=resolution,
-                ekstra_stier=stier, colorbar=False, titel=f"start=({start[0]:.2g}, {start[1]:.2g})",
+            paths = []
+            for name, _ in methods:
+                r = results[name][i]
+                path = [(a, b) for (a, b, _) in r["loss_points"]] or [start]
+                paths.append((path, colors[name]))
+            paneler.append(loss_contour(
+                landscape["loss"], landscape["a_range"], landscape["b_range"], resolution=resolution,
+                extra_paths=paths, colorbar=False, title=f"start=({start[0]:.2g}, {start[1]:.2g})",
             ))
 
     display_grid(paneler, cols=5, row_labels=row_labels)

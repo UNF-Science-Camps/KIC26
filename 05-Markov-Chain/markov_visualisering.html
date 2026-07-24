@@ -72,11 +72,12 @@
   button:hover{border-color:var(--cur)}
   button.primary{background:var(--cur); color:#fff; border-color:var(--cur)}
   button:disabled{opacity:.45; cursor:default; border-color:var(--node-stroke)}
-  select{
+  select, input[type=number]{
     font:inherit; font-size:.9rem; color:var(--ink);
     background:var(--plane); border:1px solid var(--node-stroke);
     border-radius:9px; padding:7px 10px;
   }
+  input[type=number]{width:66px}
   input[type=range]{accent-color:var(--cur); width:150px}
 
   .legend{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:.85rem;
@@ -101,6 +102,8 @@
   .node.current text{fill:var(--cur)}
   .node.chosen rect{fill:var(--chosen-wash); stroke:var(--chosen); stroke-width:2.4}
   .node.chosen text{fill:var(--chosen)}
+  .node.context rect{fill:var(--node); stroke:var(--node-stroke); opacity:.6}
+  .node.context text{fill:var(--muted)}
   .node.dim rect{opacity:.5}
   .node.dim text{opacity:.5}
 
@@ -117,6 +120,7 @@
   .elabel.chosen{fill:var(--chosen)}
   .elabel-bg{fill:var(--surface); opacity:0; transition:opacity .35s ease}
   .elabel-bg.show{opacity:.92}
+  .flow-arrow{stroke:var(--muted); stroke-width:1.6; fill:none; opacity:.7}
 
   /* ── genereret tekst ── */
   .band{font-size:1.15rem; line-height:1.8; min-height:2.2em}
@@ -144,16 +148,25 @@
 <body>
 <div class="wrap">
   <h1>Markov-kæder — hvordan næste ord vælges</h1>
-  <p class="lede">En Markov-kæde gætter det næste ord ud fra det nuværende. Hver linje er
-  en mulig vej videre — <b>jo tykkere linje, jo mere sandsynligt</b> er ordet. Det
-  <b style="color:var(--cur)">nuværende ord</b> er blåt, det <b style="color:var(--chosen)">valgte
-  næste ord</b> orange. Tryk <b>Afspil</b> og følg teksten vokse nederst, ét ord ad gangen.</p>
+  <p class="lede">En Markov-kæde gætter det næste ord ud fra tilstanden (de sidste
+  <b>mængde af ord</b> ord). Hver linje er en mulig vej videre — <b>jo tykkere linje, jo mere
+  sandsynligt</b>. Den <b style="color:var(--cur)">nuværende tilstand</b> er blå, det
+  <b style="color:var(--chosen)">valgte næste ord</b> orange. Tryk <b>Afspil</b> og følg
+  teksten vokse nederst, ét ord ad gangen. Kæden bygges med <b>præcis de samme Python-funktioner</b>
+  (<code>create_states</code>, <code>generate_markov_chain</code>, <code>calculate_state_chances</code>)
+  som I selv bruger — kørt i browseren med Pyodide.</p>
 
   <div class="card">
     <textarea id="tekst" spellcheck="false" aria-label="Træningstekst"></textarea>
     <div class="row">
       <button id="byg">Byg kæde igen</button>
-      <label class="f">Start-ord
+      <label class="f">Mængde af ord
+        <input type="number" id="orden" min="1" max="5" step="1" value="1">
+      </label>
+      <label class="f">Antal skridt
+        <input type="number" id="skridtMax" min="1" max="200" step="1" value="10">
+      </label>
+      <label class="f">Start-tilstand
         <select id="start"></select>
       </label>
       <label class="f">Fart <span class="v" id="fartV"></span>
@@ -164,7 +177,7 @@
       </label>
     </div>
     <div class="legend">
-      <span><span class="dot" style="background:var(--cur)"></span>nuværende ord</span>
+      <span><span class="dot" style="background:var(--cur)"></span>nuværende tilstand</span>
       <span><span class="dot" style="background:var(--chosen)"></span>valgt næste ord</span>
       <span><span class="ln" style="border-top-width:2px; border-color:var(--cand)"></span>mulig vej (tynd = lille sandsynlighed)</span>
       <span><span class="ln" style="border-top-width:5px; border-color:var(--chosen)"></span>den valgte vej</span>
@@ -177,11 +190,12 @@
       <button id="step">⏭ +1 skridt</button>
       <button id="reset">⟲ Nulstil</button>
       <button id="fro">🎲 Nyt frø</button>
+      <button id="visning" style="margin-left:auto">Vis hele gitteret</button>
     </div>
     <div class="status" id="status"></div>
     <div class="stage">
       <svg id="graf" xmlns="http://www.w3.org/2000/svg" role="img"
-           aria-label="Ord i et gitter med linjer til mulige næste ord"></svg>
+           aria-label="Ord med linjer til mulige næste ord"></svg>
     </div>
   </div>
 
@@ -190,17 +204,20 @@
     <div class="band" id="band"></div>
   </div>
 
-  <p class="note">Prøv selv: skift teksten i feltet og tryk <code>Byg kæde igen</code>.
-  Skru på <code>Temperatur</code> — <b>0</b> vælger altid det mest sandsynlige ord,
-  <b>1</b> er den ægte Markov-sandsynlighed (hyppighed ÷ antal), <b>2</b> er helt tilfældigt.
-  <code>Nyt frø</code> giver de tilfældige valg en ny omgang.</p>
+  <p class="note">Prøv selv: skift teksten og tryk <code>Byg kæde igen</code>. Skru på
+  <code>Mængde af ord</code> — <b>1</b> = kæden ser kun det sidste ord, <b>2</b> = "sidste ord +
+  nuværende ord" → næste, osv. (samme <code>amount_of_words</code> som i notebooken).
+  <code>Temperatur</code>: <b>0</b> vælger altid det mest sandsynlige ord, <b>1</b> er den ægte
+  Markov-sandsynlighed (hyppighed ÷ antal), <b>2</b> er mere tilfældigt. Knappen til højre skifter
+  mellem den <b>fokuserede visning</b> (kun de næste ord med sandsynlighed > 0) og <b>hele gitteret</b>.</p>
 </div>
 
 <div id="tip"></div>
 
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
 "use strict";
-const SKRIDT_MAX = 10;
+const skridtMax = () => Math.max(1, parseInt(document.getElementById("skridtMax").value, 10) || 10);
 const DEMO =
 `jeg vil fange en pikachu
 jeg vil fange en bulbasaur
@@ -211,42 +228,110 @@ jeg kan godt lide pikachu
 en pikachu er gul
 en bulbasaur er grøn`;
 
-/* ── Markov-logik (samme idé som helpers.py) ── */
-function tokeniser(t){
-  return t.toLowerCase().split(/[^0-9a-zà-ÿ]+/).filter(Boolean);
+/* ────────────────────────────────────────────────────────────────────────
+   Markov-logikken herunder er de PRÆCIS SAMME funktioner som i
+   98-Helpers/helpers.py (og notebook-cellen). De køres uændret i browseren
+   via Pyodide, så visualiseringen viser nøjagtigt hvad elevernes egen kode gør.
+   ──────────────────────────────────────────────────────────────────────── */
+const PYCODE = String.raw`
+import re, json
+
+def tokenize(text):
+    # Samme som read_file_into_tokens, men paa en tekststreng i stedet for en fil.
+    text = text.lower()
+    raw_tokens = re.split(r'(?![:,\.;"][0-9])[:,\.;?" \r\n]+', text)
+    return [t for t in raw_tokens if t]
+
+def create_states(data, amount_of_words=1):
+    list_of_states = []
+    for i in range(len(data) + 1 - amount_of_words):
+        list_of_states.append(" ".join(data[i:i + amount_of_words]))
+    return list_of_states
+
+def generate_markov_chain(states):
+    markov_chain = {}
+    for index, word in enumerate(states):
+        nabo_index = index + 1
+        if nabo_index >= len(states):
+            if word not in markov_chain:
+                markov_chain[word] = [1, {}]
+                markov_chain[word][1][word] = 1
+            break
+        next_word = states[nabo_index].split(" ")[-1]
+        if word in markov_chain:
+            markov_chain[word][0] += 1
+            if next_word in markov_chain[word][1]:
+                markov_chain[word][1][next_word] += 1
+            else:
+                markov_chain[word][1][next_word] = 1
+        else:
+            markov_chain[word] = [1, {}]
+            markov_chain[word][1][next_word] = 1
+    for state in markov_chain.keys():
+        markov_chain[state][1] = dict(sorted(markov_chain[state][1].items(), key=lambda item: item[1], reverse=True))
+    return markov_chain
+
+def calculate_single_state_chance(temperature, total_occurances, possible_next_state_count, next_state_frequency):
+    if temperature <= 1:
+        return next_state_frequency / ((1-temperature) * next_state_frequency + total_occurances * temperature)
+    else:
+        temperature = temperature - 1
+        t = next_state_frequency * (1-temperature) + temperature
+        q = possible_next_state_count * temperature + total_occurances * (1-temperature)
+        return t / q
+
+def calculate_state_chances(temperature, total_occurences, possible_next_states):
+    return [calculate_single_state_chance(temperature, int(total_occurences), len(possible_next_states), state)
+            for state in possible_next_states.values()]
+
+# ── driver-lag oven paa de rigtige funktioner (kaldes fra JavaScript) ──
+_CHAIN = {}
+
+def set_chain(text, amount_of_words):
+    global _CHAIN
+    _CHAIN = generate_markov_chain(create_states(tokenize(text), int(amount_of_words)))
+    return json.dumps({"states": list(_CHAIN.keys()),
+                       "total":  {s: _CHAIN[s][0] for s in _CHAIN}})
+
+def _effektive_chancer(total, next_dict, temperature):
+    # Nøjagtig samme udvaelgelse som generate_text (calculate_state_chances + samme
+    # taerskel/renormalisering), men vi udregner sandsynligheden for HVERT valg i stedet
+    # for at traekke ét tilfaeldigt. Giver: temp 0 = argmax (100%), temp 1 = hyppighed/antal.
+    chances = calculate_state_chances(temperature, total, next_dict)
+    words = list(next_dict.keys()); k = len(words)
+    probs = []; sum_chance = 0.0; mtn = 1.0; prev = 0.0
+    for i in range(k):
+        cum = sum_chance + chances[i] * mtn
+        if i == k - 1:
+            p = max(0.0, 1.0 - prev)
+        else:
+            p = max(0.0, min(cum, 1.0) - prev)
+        probs.append(p)
+        sum_chance = cum
+        amount_left = 1 - sum_chance
+        rest = sum(chances[i:])
+        if rest > 0 and amount_left != 0:
+            mtn = 1 / (rest * (1 / amount_left))
+        prev = min(cum, 1.0)
+    return words, probs
+
+def chances_for(state, temperature):
+    if state not in _CHAIN:
+        return json.dumps([])
+    total, nxt = _CHAIN[state]
+    words, probs = _effektive_chancer(total, nxt, float(temperature))
+    return json.dumps([{"ord": w, "p": p, "freq": nxt[w]} for w, p in zip(words, probs)])
+`;
+
+/* ── Pyodide-broen ── */
+let pyodide = null, pySetChain = null, pyChances = null;
+function setChain(text, order){ return JSON.parse(pySetChain(text, order)); }
+function chancesFor(state, temperature){
+  if(!pyChances) return [];
+  return JSON.parse(pyChances(state, temperature));
 }
-function bygKaede(tokens){
-  const chain = {};
-  for(let i=0; i<tokens.length-1; i++){
-    const w = tokens[i], nx = tokens[i+1];
-    if(!chain[w]) chain[w] = {total:0, next:{}};
-    chain[w].total++;
-    chain[w].next[nx] = (chain[w].next[nx]||0) + 1;
-  }
-  const sidste = tokens[tokens.length-1];
-  if(sidste && !chain[sidste]) chain[sidste] = {total:0, next:{}};
-  return chain;
-}
-// Sandsynligheder med temperatur. 0 = deterministisk (argmax), 1 = hyppighed/total, 2 = ensartet.
-function fordeling(nextObj, temp){
-  const ord = Object.keys(nextObj);
-  if(ord.length === 0) return [];
-  const total = ord.reduce((s,w)=>s+nextObj[w], 0);
-  const basis = ord.map(w => nextObj[w]/total);          // temp = 1
-  const k = ord.length;
-  let p;
-  if(temp <= 1){
-    const maxv = Math.max(...basis);
-    const maxi = basis.indexOf(maxv);
-    p = basis.map((b,i) => temp*b + (1-temp)*(i===maxi ? 1 : 0));
-  } else {
-    const u = 1/k, f = temp-1;
-    p = basis.map(b => (1-f)*b + f*u);
-  }
-  const s = p.reduce((a,b)=>a+b, 0) || 1;
-  return ord.map((w,i) => ({ord:w, p:p[i]/s})).sort((a,b)=>b.p-a.p);
-}
-// lille deterministisk tilfældighedsgenerator (så "Afspil" er reproducerbar)
+
+/* ── tilfældighed (reproducerbar afspilning) ── */
 function mulberry32(a){
   return function(){
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -259,56 +344,73 @@ function vaelg(dist, rng){
   const r = rng();
   let sum = 0;
   for(const d of dist){ sum += d.p; if(r <= sum) return d.ord; }
-  return dist[dist.length-1].ord;
+  return dist.length ? dist[dist.length-1].ord : null;
 }
 
-/* ── layout ── */
+/* ── layout (fuldt gitter) ── */
 const NS = "http://www.w3.org/2000/svg";
-const CELL_W = 152, CELL_H = 96, NODE_W = 118, NODE_H = 44, PAD = 26;
-let chain, ord2pos = {}, cols, rows, svgW, svgH;
+const CELL_H = 96, NODE_H = 44, PAD = 26;
+let NODE_W = 118, CELL_W = 152;
+let statesList = [], totals = {}, ORDER = 1;
+let gridOrder = [], ord2pos = {}, cols, rows, svgW, svgH;
+let viewMode = "fokus";   // "fokus" | "gitter"
 
-function byg(){
-  const tokens = tokeniser(document.getElementById("tekst").value);
-  chain = bygKaede(tokens);
-  const ord = Object.keys(chain).sort((a,b) =>
-      (chain[b].total - chain[a].total) || a.localeCompare(b, "da"));
-  cols = Math.max(1, Math.ceil(Math.sqrt(ord.length)));
-  rows = Math.ceil(ord.length / cols);
+function maalBredde(txt){ return txt.length * 8.2 + 24; }
+// lidt mere luft omkring teksten i den fokuserede visning (fed 14px + margen)
+function fokusBredde(txt){ return Math.max(88, Math.round(txt.length * 9 + 34)); }
+
+function layoutGitter(){
+  gridOrder = [...statesList].sort((a,b) =>
+      (totals[b] - totals[a]) || a.localeCompare(b, "da"));
+  const laengst = gridOrder.reduce((m,s)=>Math.max(m, s.length), 4);
+  NODE_W = Math.min(240, Math.max(108, laengst*8.2 + 20));
+  CELL_W = NODE_W + 34;
+  cols = Math.max(1, Math.ceil(Math.sqrt(gridOrder.length)));
+  rows = Math.ceil(gridOrder.length / cols);
   svgW = PAD*2 + cols*CELL_W;
   svgH = PAD*2 + rows*CELL_H;
   ord2pos = {};
-  ord.forEach((w,i) => {
+  gridOrder.forEach((w,i) => {
     const c = i % cols, r = Math.floor(i / cols);
     ord2pos[w] = { x: PAD + c*CELL_W + CELL_W/2, y: PAD + r*CELL_H + CELL_H/2 };
   });
-  tegnGitter(ord);
-  fyldStart(ord);
-  nulstil();
+}
+
+// hvilken tilstand fører (state --nextWord--> ?) : skub vinduet ét ord frem
+function nesteTilstand(state, nextWord){
+  if(ORDER <= 1) return nextWord;
+  const ord = state.split(" ");
+  return ord.slice(1).concat(nextWord).join(" ");
 }
 
 let gEdges, gNodes;
-function tegnGitter(ord){
+function nyBox(p, w, klasse, bredde){
+  const g = document.createElementNS(NS, "g");
+  g.setAttribute("class", klasse);
+  g.dataset.ord = w;
+  if(!bredde) bredde = Math.max(NODE_W, maalBredde(w));
+  const rect = document.createElementNS(NS, "rect");
+  rect.setAttribute("x", p.x - bredde/2); rect.setAttribute("y", p.y - NODE_H/2);
+  rect.setAttribute("width", bredde); rect.setAttribute("height", NODE_H);
+  rect.setAttribute("rx", 9);
+  const tx = document.createElementNS(NS, "text");
+  tx.setAttribute("x", p.x); tx.setAttribute("y", p.y + 1);
+  tx.textContent = w;
+  g.appendChild(rect); g.appendChild(tx);
+  g._bredde = bredde;
+  return g;
+}
+
+function tegnGitter(){
   const svg = document.getElementById("graf");
   svg.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
   svg.style.maxWidth = svgW + "px";
   svg.innerHTML = "";
-  gEdges = document.createElementNS(NS, "g");   // linjer under noder
+  gEdges = document.createElementNS(NS, "g");
   gNodes = document.createElementNS(NS, "g");
   svg.appendChild(gEdges); svg.appendChild(gNodes);
-
-  for(const w of ord){
-    const p = ord2pos[w];
-    const g = document.createElementNS(NS, "g");
-    g.setAttribute("class", "node");
-    g.dataset.ord = w;
-    const rect = document.createElementNS(NS, "rect");
-    rect.setAttribute("x", p.x - NODE_W/2); rect.setAttribute("y", p.y - NODE_H/2);
-    rect.setAttribute("width", NODE_W); rect.setAttribute("height", NODE_H);
-    rect.setAttribute("rx", 9);
-    const tx = document.createElementNS(NS, "text");
-    tx.setAttribute("x", p.x); tx.setAttribute("y", p.y + 1);
-    tx.textContent = w;
-    g.appendChild(rect); g.appendChild(tx);
+  for(const w of gridOrder){
+    const g = nyBox(ord2pos[w], w, "node");
     g.addEventListener("mouseenter", e => nodeTip(e, w));
     g.addEventListener("mousemove", flytTip);
     g.addEventListener("mouseleave", skjulTip);
@@ -316,10 +418,10 @@ function tegnGitter(ord){
   }
 }
 
-// klip linjens endepunkt til en boks-kant, så pilen ikke gemmer sig under noden
-function klip(fra, mod){
+// klip linjens endepunkt til en boks-kant
+function klip(fra, mod, halvB){
   const dx = fra.x - mod.x, dy = fra.y - mod.y;
-  const sx = dx ? (NODE_W/2 + 4)/Math.abs(dx) : Infinity;
+  const sx = dx ? (halvB + 4)/Math.abs(dx) : Infinity;
   const sy = dy ? (NODE_H/2 + 4)/Math.abs(dy) : Infinity;
   const s = Math.min(sx, sy, 1);
   return { x: mod.x + dx*s, y: mod.y + dy*s };
@@ -328,8 +430,8 @@ function klip(fra, mod){
 /* ── tilstand + animation ── */
 let cur, valgtNaeste, genereret, skridt, frø, rng, revealTimer, playTimer, spiller;
 
-function setStart(w){
-  cur = w; genereret = [w]; skridt = 0;
+function setStart(state){
+  cur = state; genereret = state.split(" "); skridt = 0;
   rng = mulberry32(frø);
   render();
   opdaterTekst();
@@ -338,108 +440,215 @@ function nulstil(){
   frø = 42;
   const startSel = document.getElementById("start").value;
   stopPlay();
-  setStart(startSel || cur);
+  setStart(startSel || cur || gridOrder[0]);
 }
 
+/* ── fælles: udregn fordeling + vælg næste, tegn så efter visningstype ── */
 function render(){
+  if(!pyChances) return;
   clearTimeout(revealTimer);
+  const dist = chancesFor(cur, temp()).filter(d => d.p > 1e-9);
+  valgtNaeste = (skridt < skridtMax()) ? vaelg(dist, rng) : null;
+  if(viewMode === "gitter") renderGitter(dist);
+  else                      renderFokus(dist);
+}
+
+/* ── visning 1: fuldt gitter ── */
+function renderGitter(dist){
   gEdges.innerHTML = "";
   for(const g of gNodes.children) g.classList.remove("current","chosen","dim");
   const curG = [...gNodes.children].find(g => g.dataset.ord === cur);
   if(curG) curG.classList.add("current");
 
-  const dist = fordeling(chain[cur] ? chain[cur].next : {}, temp());
   if(dist.length === 0){
-    valgtNaeste = null;
     setStatus(`<b>${cur}</b> har ingen næste ord — blindgyde.`);
+    revealFaerdig();
     return;
   }
-  valgtNaeste = (skridt < SKRIDT_MAX) ? vaelg(dist, rng) : null;
-
   const from = ord2pos[cur];
+  const fraB = curG ? curG._bredde/2 : NODE_W/2;
   for(const d of dist){
-    const to = ord2pos[d.ord];
+    const mål = nesteTilstand(cur, d.ord);
+    const to = ord2pos[mål];
     if(!to) continue;
-    const a = klip(to, from), b = klip(from, to);   // start- og slut-kant
-    const w = 1.5 + d.p * 12;                        // tykkelse = sandsynlighed
+    const målG = [...gNodes.children].find(g => g.dataset.ord === mål);
+    const tilB = målG ? målG._bredde/2 : NODE_W/2;
+    const a = klip(to, from, fraB), b = klip(from, to, tilB);
+    const w = 1.5 + d.p * 12;
     const line = document.createElementNS(NS, "line");
     line.setAttribute("x1", a.x); line.setAttribute("y1", a.y);
     line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
     line.setAttribute("class", "edge");
     line.setAttribute("stroke-width", w.toFixed(2));
-    line.dataset.ord = d.ord; line.dataset.p = d.p;
+    line.dataset.maal = mål; line.dataset.ord = d.ord;
     line.addEventListener("mouseenter", e => edgeTip(e, cur, d.ord, d.p));
     line.addEventListener("mousemove", flytTip);
     line.addEventListener("mouseleave", skjulTip);
     gEdges.appendChild(line);
-
-    // procent-mærkat nær enden af linjen
+    // procent-mærkat
     const mx = a.x + (b.x-a.x)*0.62, my = a.y + (b.y-a.y)*0.62;
-    const bg = document.createElementNS(NS, "rect");
     const label = Math.round(d.p*100) + "%";
     const wpx = label.length*7 + 8;
+    const bg = document.createElementNS(NS, "rect");
     bg.setAttribute("x", mx - wpx/2); bg.setAttribute("y", my - 9);
     bg.setAttribute("width", wpx); bg.setAttribute("height", 16);
-    bg.setAttribute("rx", 5); bg.setAttribute("class", "elabel-bg");
+    bg.setAttribute("rx", 5); bg.setAttribute("class", "elabel-bg"); bg.dataset.maal = mål;
     const t = document.createElementNS(NS, "text");
     t.setAttribute("x", mx); t.setAttribute("y", my + 1);
-    t.setAttribute("class", "elabel"); t.textContent = label;
-    t.dataset.ord = d.ord; bg.dataset.ord = d.ord;
+    t.setAttribute("class", "elabel"); t.textContent = label; t.dataset.maal = mål;
     gEdges.appendChild(bg); gEdges.appendChild(t);
   }
-
-  // fade linjer ind
-  requestAnimationFrame(() => {
-    for(const el of gEdges.children) el.classList.add("show");
-  });
+  requestAnimationFrame(() => { for(const el of gEdges.children) el.classList.add("show"); });
   setStatus(`<b>${cur}</b> — ${dist.length} mulige næste ord.`);
 
-  // efter en pause: fremhæv det valgte
   if(valgtNaeste){
+    const målValgt = nesteTilstand(cur, valgtNaeste);
     revealTimer = setTimeout(() => {
-      const to = ord2pos[valgtNaeste];
-      for(const el of gEdges.children){
-        if(el.dataset.ord === valgtNaeste) el.classList.add("chosen");
-      }
-      const g = [...gNodes.children].find(n => n.dataset.ord === valgtNaeste);
-      if(g && valgtNaeste !== cur) g.classList.add("chosen");
-      const pv = fordeling(chain[cur].next, temp()).find(d=>d.ord===valgtNaeste);
+      for(const el of gEdges.children) if(el.dataset.maal === målValgt) el.classList.add("chosen");
+      const g = [...gNodes.children].find(n => n.dataset.ord === målValgt);
+      if(g && målValgt !== cur) g.classList.add("chosen");
+      const pv = dist.find(d => d.ord === valgtNaeste);
       setStatus(`<b>${cur}</b> vælger <b style="color:var(--chosen)">${valgtNaeste}</b>` +
                 ` (${Math.round((pv?pv.p:0)*100)}%).`);
     }, Math.max(220, fart()*0.45));
-  }
+  } else revealFaerdig();
 }
+
+/* ── visning 2: fokuseret (kun ord med sandsynlighed > 0) ── */
+function renderFokus(dist){
+  const svg = document.getElementById("graf");
+  svg.innerHTML = "";
+  gEdges = document.createElementNS(NS, "g");
+  gNodes = document.createElementNS(NS, "g");
+  svg.appendChild(gEdges); svg.appendChild(gNodes);
+
+  const BH = NODE_H, GAP_X = 44, HUB_GAP = 104, ROW_H = 64, PADX = PAD, PADY = PAD;
+  const ordTilstand = cur.split(" ");
+
+  // venstre: tilstandens ord som en lille kæde. SAMME bredde bruges baade til at placere
+  // og til at tegne boksen (ellers overlapper de — især naar der er et ord før).
+  const tilstandBredder = ordTilstand.map(fokusBredde);
+  let x = PADX;
+  const tilstandPos = ordTilstand.map((w,i) => {
+    const b = tilstandBredder[i];
+    const p = { x: x + b/2, w: b };
+    x += b + (i < ordTilstand.length-1 ? GAP_X : 0);
+    return p;
+  });
+  const hubHøjre = x;                       // højre kant af sidste tilstands-ord
+  const nextBredder = dist.map(d => fokusBredde(d.ord));
+  const nextMaxB = dist.length ? Math.max(...nextBredder) : 0;
+  const nextX = hubHøjre + HUB_GAP + nextMaxB/2;
+
+  const kolHøjde = Math.max(1, dist.length) * ROW_H;
+  svgH = Math.max(BH + 2*PADY, kolHøjde + 2*PADY);
+  svgW = nextX + nextMaxB/2 + PADX;
+  const midtY = svgH/2;
+
+  svg.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
+  svg.style.maxWidth = svgW + "px";
+
+  // tegn tilstands-ord (sidste ord = blå "nuværende")
+  tilstandPos.forEach((p, i) => {
+    const sidste = (i === ordTilstand.length - 1);
+    const g = nyBox({x:p.x, y:midtY}, ordTilstand[i], "node " + (sidste ? "current" : "context"), p.w);
+    gNodes.appendChild(g);
+    if(i < ordTilstand.length - 1){   // lille pil mellem tilstands-ordene
+      const l = document.createElementNS(NS, "path");
+      const x1 = p.x + p.w/2, x2 = tilstandPos[i+1].x - tilstandPos[i+1].w/2;
+      l.setAttribute("d", `M ${x1} ${midtY} L ${x2-4} ${midtY}`);
+      l.setAttribute("class", "flow-arrow");
+      gEdges.appendChild(l);
+    }
+  });
+
+  if(dist.length === 0){
+    setStatus(`<b>${cur}</b> har ingen næste ord — blindgyde.`);
+    revealFaerdig();
+    return;
+  }
+
+  const fra = { x: hubHøjre, y: midtY };
+  const startY = midtY - kolHøjde/2 + ROW_H/2;
+  dist.forEach((d, i) => {
+    const nb = nextBredder[i];
+    const p = { x: nextX, y: startY + i*ROW_H };
+    const g = nyBox(p, d.ord, "node", nb);
+    g.dataset.ordnavn = d.ord;
+    g.addEventListener("mouseenter", e => edgeTip(e, cur, d.ord, d.p));
+    g.addEventListener("mousemove", flytTip);
+    g.addEventListener("mouseleave", skjulTip);
+    gNodes.appendChild(g);
+
+    const to = { x: p.x - nb/2 - 4, y: p.y };
+    const w = 1.5 + d.p * 12;
+    const line = document.createElementNS(NS, "line");
+    line.setAttribute("x1", fra.x); line.setAttribute("y1", fra.y);
+    line.setAttribute("x2", to.x);  line.setAttribute("y2", to.y);
+    line.setAttribute("class", "edge");
+    line.setAttribute("stroke-width", w.toFixed(2));
+    line.dataset.ordnavn = d.ord;
+    gEdges.appendChild(line);
+
+    const mx = fra.x + (to.x-fra.x)*0.55, my = fra.y + (to.y-fra.y)*0.55 - 10;
+    const label = Math.round(d.p*100) + "%";
+    const wpx = label.length*7 + 8;
+    const bg = document.createElementNS(NS, "rect");
+    bg.setAttribute("x", mx - wpx/2); bg.setAttribute("y", my - 9);
+    bg.setAttribute("width", wpx); bg.setAttribute("height", 16);
+    bg.setAttribute("rx", 5); bg.setAttribute("class", "elabel-bg"); bg.dataset.ordnavn = d.ord;
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", mx); t.setAttribute("y", my + 1);
+    t.setAttribute("class", "elabel"); t.textContent = label; t.dataset.ordnavn = d.ord;
+    gEdges.appendChild(bg); gEdges.appendChild(t);
+  });
+
+  requestAnimationFrame(() => { for(const el of gEdges.children) el.classList.add("show"); });
+  setStatus(`<b>${cur}</b> — ${dist.length} mulige næste ord (kun sandsynlighed > 0).`);
+
+  if(valgtNaeste){
+    revealTimer = setTimeout(() => {
+      for(const el of gEdges.children) if(el.dataset.ordnavn === valgtNaeste) el.classList.add("chosen");
+      const g = [...gNodes.children].find(n => n.dataset.ordnavn === valgtNaeste);
+      if(g) g.classList.add("chosen");
+      const pv = dist.find(d => d.ord === valgtNaeste);
+      setStatus(`<b>${cur}</b> vælger <b style="color:var(--chosen)">${valgtNaeste}</b>` +
+                ` (${Math.round((pv?pv.p:0)*100)}%).`);
+    }, Math.max(220, fart()*0.45));
+  } else revealFaerdig();
+}
+
+function revealFaerdig(){ /* ingen valgt — intet at fremhæve */ }
 
 function fremad(){
   clearTimeout(revealTimer);
-  if(skridt >= SKRIDT_MAX || !valgtNaeste){ stopPlay(); return false; }
+  if(skridt >= skridtMax() || !valgtNaeste){ stopPlay(); return false; }
   genereret.push(valgtNaeste);
-  cur = valgtNaeste; skridt++;
+  cur = genereret.slice(-ORDER).join(" ");
+  skridt++;
   opdaterTekst(); render();
-  if(skridt >= SKRIDT_MAX || !valgtNaeste){ stopPlay(); }
+  if(skridt >= skridtMax() || !valgtNaeste){ stopPlay(); }
   return true;
 }
 
 function opdaterTekst(){
   const band = document.getElementById("band");
   band.innerHTML = genereret.map((w,i) =>
-    `<span class="w${i===genereret.length-1 && i>0 ? ' last':''}">${w}</span>`).join(" ") +
-    (skridt < SKRIDT_MAX && valgtNaeste ? ' <span class="caret">▏</span>' : '');
-  document.getElementById("steps").textContent = `Skridt ${skridt} / ${SKRIDT_MAX}`;
+    `<span class="w${i===genereret.length-1 && i>=ORDER ? ' last':''}">${w}</span>`).join(" ") +
+    (skridt < skridtMax() && valgtNaeste ? ' <span class="caret">▏</span>' : '');
+  document.getElementById("steps").textContent = `Skridt ${skridt} / ${skridtMax()}`;
 }
 
 /* ── afspilning ── */
 function playTick(){
   if(!spiller) return;
   const ok = fremad();
-  if(ok && spiller && skridt < SKRIDT_MAX && valgtNaeste){
+  if(ok && spiller && skridt < skridtMax() && valgtNaeste){
     playTimer = setTimeout(playTick, fart());
-  } else {
-    stopPlay();
-  }
+  } else stopPlay();
 }
 function startPlay(){
-  if(skridt >= SKRIDT_MAX || !valgtNaeste){ nulstil(); }
+  if(skridt >= skridtMax() || !valgtNaeste){ nulstil(); }
   spiller = true;
   document.getElementById("play").innerHTML = "⏸ Pause";
   playTimer = setTimeout(playTick, Math.max(320, fart()*0.6));
@@ -454,19 +663,44 @@ function stopPlay(){
 const fart = () => +document.getElementById("fart").value;
 const temp = () => +document.getElementById("temp").value;
 function setStatus(html){ document.getElementById("status").innerHTML = html; }
-function fyldStart(ord){
+function fyldStart(){
   const sel = document.getElementById("start");
   const nu = sel.value;
-  sel.innerHTML = ord.map(w => `<option>${w}</option>`).join("");
-  if(ord.includes("jeg")) sel.value = "jeg";
-  else if(ord.includes(nu)) sel.value = nu;
+  const sorteret = [...statesList].sort((a,b) => (totals[b]-totals[a]) || a.localeCompare(b,"da"));
+  sel.innerHTML = sorteret.map(w => `<option>${w}</option>`).join("");
+  if(sorteret.includes(nu)) sel.value = nu;
+  else {
+    const jeg = sorteret.find(s => s === "jeg" || s.startsWith("jeg "));
+    sel.value = jeg || sorteret[0] || "";
+  }
+}
+
+/* ── byg kæde (kalder Python) ── */
+function byg(){
+  if(!pySetChain) return;
+  const text = document.getElementById("tekst").value;
+  ORDER = Math.max(1, parseInt(document.getElementById("orden").value, 10) || 1);
+  const info = setChain(text, ORDER);
+  statesList = info.states; totals = info.total;
+  layoutGitter();
+  fyldStart();
+  if(viewMode === "gitter") tegnGitter();
+  nulstil();
+}
+
+function skiftVisning(){
+  viewMode = (viewMode === "fokus") ? "gitter" : "fokus";
+  document.getElementById("visning").textContent =
+    (viewMode === "fokus") ? "Vis hele gitteret" : "Vis fokuseret";
+  if(viewMode === "gitter"){ layoutGitter(); tegnGitter(); }
+  render();
 }
 
 /* ── tooltip ── */
 const tip = document.getElementById("tip");
-function nodeTip(e, w){
-  const dist = fordeling(chain[w] ? chain[w].next : {}, temp());
-  let html = `<div class="th">${w} →</div>`;
+function nodeTip(e, state){
+  const dist = chancesFor(state, temp());
+  let html = `<div class="th">${state} →</div>`;
   if(dist.length === 0) html += `<div class="tr">blindgyde</div>`;
   else html += dist.map(d =>
     `<div class="tr"><span>${d.ord}</span><span class="p">${Math.round(d.p*100)}%</span></div>`).join("");
@@ -488,9 +722,15 @@ function flytTip(e){
 }
 function skjulTip(){ tip.style.opacity = 0; }
 
-/* ── begivenheder ── */
+/* ── knapper (slået fra indtil Pyodide er klar) ── */
+const knapper = ["byg","play","step","reset","fro","visning","start","orden","skridtMax","temp","fart"];
+function saetAktiv(til){ for(const id of knapper){ const el = document.getElementById(id); if(el) el.disabled = !til; } }
+
 document.getElementById("tekst").value = DEMO;
 document.getElementById("byg").addEventListener("click", byg);
+document.getElementById("orden").addEventListener("change", byg);
+document.getElementById("skridtMax").addEventListener("change", () => { stopPlay(); nulstil(); });
+document.getElementById("visning").addEventListener("click", skiftVisning);
 document.getElementById("play").addEventListener("click", () => spiller ? stopPlay() : startPlay());
 document.getElementById("step").addEventListener("click", () => { stopPlay(); fremad(); });
 document.getElementById("reset").addEventListener("click", nulstil);
@@ -500,15 +740,32 @@ document.getElementById("fro").addEventListener("click", () => {
 document.getElementById("start").addEventListener("change", () => { stopPlay(); nulstil(); });
 document.getElementById("temp").addEventListener("input", () => {
   document.getElementById("tempV").textContent = temp().toFixed(1);
-  stopPlay(); setStart(cur = document.getElementById("start").value);
+  stopPlay(); setStart(document.getElementById("start").value);
 });
 document.getElementById("fart").addEventListener("input", () => {
   document.getElementById("fartV").textContent = (fart()/1000).toFixed(1) + " s";
 });
-
 document.getElementById("tempV").textContent = temp().toFixed(1);
 document.getElementById("fartV").textContent = (fart()/1000).toFixed(1) + " s";
-byg();
+document.getElementById("visning").textContent = "Vis hele gitteret";
+
+/* ── start Pyodide og kør den rigtige Python ── */
+async function start(){
+  saetAktiv(false);
+  setStatus("Indlæser Python (Pyodide) … første gang kan tage et øjeblik.");
+  try{
+    pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
+    pyodide.runPython(PYCODE);
+    pySetChain = pyodide.globals.get("set_chain");
+    pyChances  = pyodide.globals.get("chances_for");
+    saetAktiv(true);
+    byg();
+  } catch(err){
+    setStatus("Kunne ikke indlæse Python (Pyodide). Tjek din internetforbindelse og genindlæs siden.");
+    console.error(err);
+  }
+}
+start();
 </script>
 </body>
 </html>
