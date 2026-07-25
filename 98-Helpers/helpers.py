@@ -494,6 +494,32 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
     return " ".join(generated_text)
 
 
+def generate_markov_chain_from_file(file_path, amount_of_words=1):
+    """
+    Skaber en markov kæde ud fra den givne fil.
+    """
+    # Vi læser filen til tokens, laver states af dem, og bruger dem til at generere en markov kæde.
+    return generate_markov_chain(create_states(read_file_into_tokens(file_path), amount_of_words))
+
+
+def generate_iterated_markov_chain(markov_chain, amount_to_generate=10000, temperature=1, amount_of_times=1, start_state=None):
+    """
+    Tager en markov kæde og itererer på den: den skaber ny tekst, genererer en ny markov kæde
+    ud fra den tekst, og gentager. Det er lidt ligesom de der "google translated ___ times" videoer.
+    """
+    new_markov_chain = markov_chain
+    # Funktionen looper, så den iterativt laver en ny markov kæde efter hvert loop
+    for i in range(amount_of_times):
+        print("", f"Iteration {i}")
+
+        # Vi genererer først ny tekst med den nuværende markov kæde
+        text = generate_text(new_markov_chain, amount_to_generate, start_state, temperature).split(" ")
+
+        # Vi genererer nu en ny markov kæde med vores nyligt genererede tekst
+        new_markov_chain = generate_markov_chain(create_states(text))
+
+    return new_markov_chain
+
 
 mpl.rcParams['animation.embed_limit'] = 100
 
