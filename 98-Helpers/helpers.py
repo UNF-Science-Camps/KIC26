@@ -750,7 +750,7 @@ def display_grid(paneler, cols, row_labels=None, figsize=None):
     """
     Som display(), men i et helt grid i stedet for kun én række — paneler er en FLAD liste,
     der ombrydes til en ny række for hver `cols` paneler. Bruges fx til
-    træningsloop-konkurrencens 24 paneler (4 landskaber × 6 startpunkter, cols=6).
+    gd/momentum/rmsprop/adam-blokkens paneler (4 landskaber × 6 startpunkter, cols=6).
     row_labels: valgfri liste af navne, ét pr. række, vist som y-akse-label på rækkens første panel.
     """
     rows = -(-len(paneler) // cols)  # rundet op
@@ -852,7 +852,7 @@ def loss_contour(loss_fn, a_range, b_range, resolution=60, point=None, path=None
     matche samme farve brugt i et andet panel).
     ekstra_stier: valgfri liste af (punkter, farve) eller (punkter, farve, label) — tegner flere
     stier oveni den primære 'path', hver med en lille cirkel ved sit sidste punkt. Bruges fx til
-    at vise to metoders stier på samme landskab, eller (i træningsloop-konkurrencen) loss-kald og
+    at vise to metoders stier på samme landskab, eller (i gd/momentum/rmsprop/adam-blokken) loss-kald og
     gradient-kald som to forskellige stier. Giver mindst én sti et 'label', tegnes der automatisk
     en legend (til fx at sammenligne flere metoders stier fra samme startpunkt).
     ekstra_pile: valgfri liste af (a, b, grad_a, grad_b, farve, alpha) — tegner FLERE pile,
@@ -1450,26 +1450,26 @@ def relu_components(weights, biases, x_range=(-2, 4), c=0.0):
 
 
 """
-Landskaber + evalueringsharness til træningsloop-blokkens gradient-descent-konkurrence.
-Eleverne skriver deres egen gd_metode(loss, gradient, start, ...) -> (a,b) — typisk versioneret
-som egen_gd_metode_v1, v2, ... i takt med at de bygger flere idéer ind (momentum, RMSprop, ...)
-— og sammenligner en HEL LISTE af metoder ad gangen med evaluer_gd_metode([("gd", gd_metode), ...]),
+Landskaber + evalueringsharness til gd/momentum/rmsprop/adam-blokken.
+Eleverne skriver deres egen gd_method(loss, start, ...) -> (a,b) — typisk versioneret
+som own_gd_method_v1, v2, ... i takt med at de bygger flere idéer ind (momentum, RMSprop, ...)
+— og sammenligner en hel liste af metoder ad gangen med evaluate_gd_method([("gd", gd_method), ...]),
 kørt på tværs af 4 landskaber × 4 udvalgte startpunkter.
 """
 
 class BudgetExceeded(Exception):
-    """Rejses når en gd_metode-funktion har brugt alle sine kald til loss/gradient."""
+    """Rejses når en metode-funktion har brugt alle sine kald til loss."""
     pass
 
 
 # ── Landskabernes matematik ──────────────────────────────────────────────
-# hvert landskab er loss(a,b) -> tal (ren aritmetik, virker på tal OG torch-tensorer, så
-# eleverne selv kan kalde .backward() på det). De analytiske gradienter herunder er PRIVATE:
+# hvert landskab er loss(a,b) -> tal (ren aritmetik, virker på tal og torch-tensorer, så
+# eleverne selv kan kalde .backward() på det). De analytiske gradienter herunder er private:
 # de bruges kun til at finde landskabets minimum ved import — eleverne får kun loss.
 
 def _generate_line_points(n=100, a_true=1.2, b_true=1.5, x_range=(0, 10), noise=0.6, seed=42):
     """~100 punkter normalfordelt omkring en linje — landskabet til minibatch/SGD-afsnittet,
-    og konkurrencens 'linjefitting'-landskab."""
+    og gd/momentum/rmsprop/adam-blokkens 'linjefitting'-landskab."""
     rng = np.random.default_rng(seed)
     xs = rng.uniform(*x_range, n)
     ys = a_true * xs + b_true + rng.normal(0, noise, n)
@@ -1495,7 +1495,7 @@ def _line_gradient(a, b, points=LINE_POINTS):
 
 
 def _line_minimum(points=LINE_POINTS):
-    """Normalligningerne — samme lukkede løsning som regression_facit."""
+    """Normalligningerne — samme lukkede løsning som regression1_solution."""
     xs = np.array([p[0] for p in points])
     ys = np.array([p[1] for p in points])
     A = np.column_stack([xs, np.ones_like(xs)])
@@ -1505,7 +1505,7 @@ def _line_minimum(points=LINE_POINTS):
 
 # offentlige navne (uden understreg) til minibatch-afsnittet — "givet" infrastruktur, ligesom
 # sesy_viz's egne funktioner: I skal ikke selv udlede MSE-gradienten igen, den kender I allerede
-# fra regression — brug den bare på et TILFÆLDIGT UDPLUK af punkter i stedet for alle.
+# fra regression1 — brug den bare på et tilfældigt udpluk af punkter i stedet for alle.
 line_loss = _line_loss
 line_gradient = _line_gradient
 
@@ -1592,7 +1592,7 @@ _platau1d_a_star, _ = _multistart_minimum(_platau1d_loss, _platau1d_gradient, (-
 LANDSCAPES = [
     _build_landscape("linjefitting", _line_loss, _line_gradient, (-1, 3), (-3, 3), minimum=_line_minimum()),
     # b-view centreret om 0 (b²-skålens midterlinje) — anderledes range end a, som er valgt til
-    # at ramme a-aksens 2 lokale minima. b-aksens minimum er PRÆCIST 0.0, låst eksplicit i
+    # at ramme a-aksens 2 lokale minima. b-aksens minimum er eksakt 0.0, låst eksplicit i
     # stedet for at stole på multistart-søgningens numeriske tilnærmelse for den akse.
     _build_landscape("plateau (1D)", _platau1d_loss, _platau1d_gradient, (-2.1, 1.1), (-1, 1), minimum=(_platau1d_a_star, 0.0)),
     _build_landscape("plateau (2D)", _platau2d_loss, _platau2d_gradient, (-2.1, 1.1), (-2.1, 1.1)),
@@ -1601,7 +1601,7 @@ LANDSCAPES = [
 
 
 # ── 4 udvalgte startpunkter pr. landskab ──────────────────────────────────
-# HÅNDPLUKKEDE (ikke et generisk hjørne-mønster) — valgt ved faktisk at køre gd/momentum/
+# håndplukkede (ikke et generisk hjørne-mønster) — valgt ved faktisk at køre gd/momentum/
 # rmsprop/adam fra mange kandidat-punkter og beholde de 4 pr. landskab der viser mest
 # forskellig opførsel: fx et sted alle metoder er enige, et sted de er dybt uenige (en metode
 # vinder klart), osv. Se intro-ml-plan-memoen for den fulde udforskning bag disse tal.
@@ -1618,7 +1618,7 @@ INTERESTING_START_POINTS = {
 
 def _sikker_loss(fn, a, b):
     """Regner fn(a,b) med numpy-tal, så en eksploderet metode (fx Rosenbrock med for stort lr)
-    giver et meget dårligt tal (inf/nan) i stedet for at vælte hele konkurrencen med en exception."""
+    giver et meget dårligt tal (inf/nan) i stedet for at vælte hele sammenligningen med en exception."""
     with np.errstate(all="ignore"):
         try:
             return float(fn(np.float64(a), np.float64(b)))
@@ -1632,16 +1632,16 @@ _DISTANCE_LIMIT = 1000  # et kald om et punkt længere væk end dette fra landsk
 def instrument(landscape, budget=100, distance_threshold_boundary=_DISTANCE_LIMIT):
     """
     Pakker landskabets loss ind, så hvert kald tælles og huskes (positioner undersøgt).
-    Eleverne får KUN loss(a,b) — gradienten finder de selv med .backward(). Hvert loss-kald
+    Eleverne får kun loss(a,b) — gradienten finder de selv med .backward(). Hvert loss-kald
     (ét forward-pass før .backward()) tæller ét mod budgettet på i alt `budget` kald.
 
-    Stopper kørslen (rejser BudgetOverskredet, med en forklarende print) i 2 tilfælde:
+    Stopper kørslen (rejser BudgetExceeded, med en forklarende print) i 2 tilfælde:
     - I har brugt alle jeres `budget` kald — jeres svar bliver automatisk det sidste punkt I
-      nåede at undersøge (så I godt må stoppe FØR budgettet er brugt, ved selv at returnere —
-      det er kun hvis I IKKE selv stopper i tide, at dette griber ind).
-    - I beder om et punkt mere end `afstand_graense` fra landskabets midte — det regnes
-      slet ikke på (undgår at meningsløst store tal vælter jeres egen udregning), og jeres
-      svar bliver det sidste GYLDIGE punkt I undersøgte før det.
+      nåede at undersøge (så I godt må stoppe før budgettet er brugt, ved selv at returnere —
+      det er kun hvis I ikke selv stopper i tide, at dette griber ind).
+    - I beder om et punkt mere end `distance_threshold_boundary` fra landskabets midte — det
+      regnes slet ikke på (undgår at meningsløst store tal vælter jeres egen udregning), og
+      jeres svar bliver det sidste gyldige punkt I undersøgte før det.
 
     loss returnerer landskabets loss uden om _sikker_loss, så a/b-tensorer med requires_grad
     beholder deres graf og .backward() virker. Positionerne huskes som almindelige tal.
@@ -1682,7 +1682,7 @@ def instrument(landscape, budget=100, distance_threshold_boundary=_DISTANCE_LIMI
 
 def run_once(gd_method, landscape, start, budget=100):
     """
-    Kør gd_metode(loss, start) ÉN gang på ét landskab, fra ét startpunkt. Returnerer et
+    Kør gd_method(loss, start) én gang på ét landskab, fra ét startpunkt. Returnerer et
     resultat-dict (landskab, start, slut, slut_loss, bedste_loss, loss_punkter) — selve
     visualiseringen af det bygger I i notebook'en.
     """
@@ -1700,7 +1700,7 @@ def run_once(gd_method, landscape, start, budget=100):
         "end_loss": end_loss,
         "best_loss": landscape["min_loss"],
         # True hvis metoden endte langt uden for landskabet (uanset om slut_loss selv er et
-        # stort-men-endeligt tal eller nan/inf) — se instrumenter()'s afstands-tjek.
+        # stort-men-endeligt tal eller nan/inf) — se instrument()'s afstands-tjek.
         "exploded": bool(tilstand["for_langt_vaek"]) or not np.isfinite(end_loss),
         "loss_points": loss_points,
     }
@@ -1734,7 +1734,7 @@ def _assign_colors(names):
     return colors
 
 
-# ── Sammenlign en liste af metoder på hele konkurrencen, i ét kald ───────
+# ── Sammenlign en liste af metoder på tværs af alle landskaber, i ét kald ───────
 
 def evaluate_gd_method(methods, landscapes=LANDSCAPES, budget=100, resolution=30):
     """
@@ -1743,7 +1743,7 @@ def evaluate_gd_method(methods, landscapes=LANDSCAPES, budget=100, resolution=30
     søjlediagram (median slut-loss pr. metode + bedste mulige loss som stiplet linje), de næste
     4 paneler viser alle metoders sti overlejret på samme landskab, ét panel pr. startpunkt.
 
-    metoder: liste af (navn, funktion)-par, fx [("gd", gd_metode), ("momentum", momentum_metode)]
+    metoder: liste af (navn, funktion)-par, fx [("gd", gd_method), ("momentum", momentum_method)]
     — skriv hele listen igen (med alt I vil sammenligne) hver gang I kalder denne, i stedet for
     at bygge videre på en gammel liste.
     """
@@ -1764,7 +1764,7 @@ def evaluate_gd_method(methods, landscapes=LANDSCAPES, budget=100, resolution=30
         ]
 
         # bar-panelet er den eneste farve/navn-forklaring i rækken (labeled x-akse) — de 4
-        # sti-paneler til højre for det holder sig derfor bevidst UDEN egen legend, for ikke at
+        # sti-paneler til højre for det holder sig derfor bevidst uden egen legend, for ikke at
         # gentage samme 4 navne i alle 20 paneler i gridet.
         paneler.append(bar_comparison(
             [name for name, _ in methods], distances, [colors[name] for name, _ in methods],
