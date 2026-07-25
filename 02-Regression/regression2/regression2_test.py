@@ -27,7 +27,7 @@ def _eq(got, exp, tol=1e-9):
 # NB: resultatet er tilfældigt, så vi tjekker egenskaber (rigtig størrelse, ingen
 # gentagelser, kun punkter der faktisk findes i datasættet) i stedet for eksakte værdier.
 
-def test_ex1_1(func):
+def test_opg1_1(func):
     """træk k punkter, uden tilbagelægning, fra en liste af punkter"""
     name = "opg1_1"
     points = [(float(i), float(i) * 2) for i in range(20)]
@@ -55,7 +55,7 @@ def test_ex1_1(func):
 
 # ── opg 1 (fortsat): sæt opg1_1 sammen med den givne skridt-funktion fra recap ──
 
-def test_ex1_2(func):
+def test_opg1_2(func):
     """træningsloop: træk en ny batch (opg1_1) og tag ét skridt (skridt, fra recap), n gange i træk.
     Testet med batch_størrelse = alle punkterne — så batchen er den samme uanset hvilken
     rækkefølge den trækkes i, og resultatet bliver deterministisk (almindelig, ikke-stokastisk
@@ -77,7 +77,7 @@ def test_ex1_2(func):
     _ok(name)
 
 
-def test_ex1_3(tekst, min_ord=15):
+def test_opg1_3(tekst, min_ord=15):
     """Ikke en facit-tjekker — der findes intet 'rigtigt' svar her. Tjekker kun at der
     rent faktisk er skrevet noget (nok ord til at være en rigtig beskrivelse, ikke bare
     et par stikord), så I ikke ved et uheld render forbi opgaven."""
@@ -90,15 +90,15 @@ def test_ex1_3(tekst, min_ord=15):
     _ok(name)
 
 
-# ── GD-metoder (gd_method / momentum_method / rmsprop_method) ───────────────────────────
+# ── GD-metoder (opg2_2 / opg3_3 / opg4_3) ───────────────────────────
 # Alle 3 skal have signaturen metode(loss, start, ..., n) -> (a, b), så de kan plugges
-# direkte ind i tk.evaluate_gd_method (som kalder dem uden ekstra argumenter, og
+# direkte ind i sesy_viz.evaluer_gd_metode (som kalder dem uden ekstra argumenter, og
 # derfor er afhængige af at jeres egne parametre — lr/beta/n — har defaults). Metoderne får
 # kun loss — gradienten finder de selv med .backward() (jeres gradienten-hjælper).
-# test_gd_method/test_momentum_method/test_rmsprop_method tjekker hvilken som helst funktion
+# test_opg2_2/test_opg3_3/test_opg4_3 tjekker hvilken som helst funktion
 # I giver dem (den behøver ikke hedde noget bestemt) — men til fri leg bagefter (jeres egne
-# idéer, ingen facit at teste imod) navngiv dem own_gd_method_v1, v2, ... og brug
-# tk.evaluate_gd_method(...) direkte i stedet.
+# idéer, ingen facit at teste imod) navngiv dem opg2_3, v2, ... og brug
+# sesy_viz.evaluer_gd_metode(...) direkte i stedet.
 # Testet på 2 små, kendte landskaber (ikke blokkens egne — dem skal I stadig selv opdage),
 # med et par forskellige startpunkter/hyperparametre, så flere slags fejl bliver fanget.
 # Facit-tal er hentet ved at køre en reference-implementation af hver metodes formel.
@@ -128,48 +128,48 @@ def _test_method(name, func, cases, hint=None):
             if hint:
                 print(f"  Hint: {hint}")
             if _viz:
-                _viz.feedback_method(loss_fn, start, got, exp)
+                _viz.feedback_metode(loss_fn, start, got, exp)
             return False
     _ok(name)
     return True
 
 
-def test_gd_step(func):
-    """gd_step(a, b, loss, lr) — ét skridt: find gradienten af loss med .backward(), træk lr*gradienten fra."""
+def test_opg2_1(func):
+    """opg2_1(a, b, loss, lr) — ét skridt: find gradienten af loss med .backward(), træk lr*gradienten fra."""
     cases = [
         ((0.0, 0.0, _test_loss1, 0.1), (0.4, -0.2)),
         ((5.0, -5.0, _test_loss2, 0.05), (3.0, -4.84)),
     ]
-    name = "gd_step"
+    name = "opg2_1"
     for inp, exp in cases:
         got = func(*inp)
         if not _eq(got, exp):
             a, b, loss_fn, lr = inp
             _fail(name, f"(a={a}, b={b}, lr={lr})  →  {got}  ≠  {exp}")
             print("  Hint: find gradienten (da, db) af loss med .backward(), gang begge med lr, og træk det fra: a - lr*da, b - lr*db.")
-            if _viz: _viz.feedback_method(loss_fn, (a, b), got, exp)
+            if _viz: _viz.feedback_metode(loss_fn, (a, b), got, exp)
             return
     _ok(name)
 
 
-def test_gd_method(func):
-    """gd_method(loss, start, lr=0.01, n=100) — almindelig gradient descent."""
+def test_opg2_2(func):
+    """opg2_2(loss, start, lr=0.01, n=100) — almindelig gradient descent."""
     cases = [
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, n=5), (1.34464, -0.67232)),
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, n=20), (1.976941569907863, -0.9884707849539315)),
         (_test_loss2, (5.0, -5.0), dict(lr=0.05, n=10), (1.00390625, -3.5365824551003757)),
     ]
-    _test_method("gd_method", func, cases, hint="kald jeres egen gd_step n gange i træk.")
+    _test_method("opg2_2", func, cases, hint="kald jeres egen opg2_1 n gange i træk.")
 
 
-def test_momentum_v_update(func):
-    """momentum_v_update(va, vb, da, db, beta) — det vægtede glidende gennemsnit af gradienten."""
+def test_opg3_1(func):
+    """opg3_1(va, vb, da, db, beta) — det vægtede glidende gennemsnit af gradienten."""
     cases = [
         ((0.0, 0.0, -4.0, 2.0, 0.9), (-0.3999999999999999, 0.19999999999999996)),
         ((1.0, 2.0, 0.5, -1.0, 0.8), (0.9, 1.4000000000000001)),
         ((-0.4, 0.2, 3.0, -1.0, 0.9), (-0.06000000000000011, 0.08000000000000004)),
     ]
-    name = "momentum_v_update"
+    name = "opg3_1"
     for inp, exp in cases:
         got = func(*inp)
         if not _eq(got, exp):
@@ -180,8 +180,8 @@ def test_momentum_v_update(func):
     _ok(name)
 
 
-def test_momentum_step(func):
-    """momentum_step(a, b, va, vb, loss, lr, beta) -> (a, b, va, vb) — ét momentum-skridt."""
+def test_opg3_2(func):
+    """opg3_2(a, b, va, vb, loss, lr, beta) -> (a, b, va, vb) — ét momentum-skridt."""
     cases = [
         ((0.0, 0.0, 0.0, 0.0, _test_loss1, 0.1, 0.9),
          (0.039999999999999994, -0.019999999999999997, -0.3999999999999999, 0.19999999999999996)),
@@ -190,36 +190,36 @@ def test_momentum_step(func):
         ((5.0, -5.0, 0.0, 0.0, _test_loss2, 0.05, 0.9),
          (4.8, -4.984, 3.999999999999999, -0.31999999999999995)),
     ]
-    name = "momentum_step"
+    name = "opg3_2"
     for inp, exp in cases:
         got = func(*inp)
         if not _eq(got, exp):
             a, b, va, vb, loss_fn, lr, beta = inp
             _fail(name, f"(a={a}, b={b}, va={va}, vb={vb}, lr={lr}, beta={beta})  →  {got}  ≠  {exp}")
-            print("  Hint: find gradienten med .backward(), opdater v med jeres momentum_v_update, brug så v (ikke gradienten) til skridtet.")
-            if _viz: _viz.feedback_method(loss_fn, (a, b), got[:2], exp[:2])
+            print("  Hint: find gradienten med .backward(), opdater v med jeres opg3_1, brug så v (ikke gradienten) til skridtet.")
+            if _viz: _viz.feedback_metode(loss_fn, (a, b), got[:2], exp[:2])
             return
     _ok(name)
 
 
-def test_momentum_method(func):
-    """momentum_method(loss, start, lr=0.02, beta=0.9, n=99)."""
+def test_opg3_3(func):
+    """opg3_3(loss, start, lr=0.02, beta=0.9, n=99)."""
     cases = [
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, beta=0.9, n=5), (0.5013670144, -0.2506835072)),
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, beta=0.5, n=10), (1.8669852288000002, -0.9334926144000001)),
         (_test_loss2, (5.0, -5.0), dict(lr=0.05, beta=0.9, n=10), (-0.24369164267851545, -4.349386327817435)),
     ]
-    _test_method("momentum_method", func, cases,
-                 hint="kald jeres egen momentum_step n gange i træk, og husk at bære v videre mellem kaldene.")
+    _test_method("opg3_3", func, cases,
+                 hint="kald jeres egen opg3_2 n gange i træk, og husk at bære v videre mellem kaldene.")
 
 
-def test_rmsprop_s_update(func):
-    """rmsprop_s_update(sa, sb, da, db, beta) — det glidende gennemsnit af gradienten i anden."""
+def test_opg4_1(func):
+    """opg4_1(sa, sb, da, db, beta) — det glidende gennemsnit af gradienten i anden."""
     cases = [
         ((0.0, 0.0, -4.0, 2.0, 0.9), (1.5999999999999996, 0.3999999999999999)),
         ((2.0, 0.5, 3.0, -1.0, 0.5), (5.5, 0.75)),
     ]
-    name = "rmsprop_s_update"
+    name = "opg4_1"
     for inp, exp in cases:
         got = func(*inp)
         if not _eq(got, exp):
@@ -230,8 +230,8 @@ def test_rmsprop_s_update(func):
     _ok(name)
 
 
-def test_rmsprop_step(func):
-    """rmsprop_step(a, b, sa, sb, loss, lr, beta, eps) -> (a, b, sa, sb) — ét rmsprop-skridt."""
+def test_opg4_2(func):
+    """opg4_2(a, b, sa, sb, loss, lr, beta, eps) -> (a, b, sa, sb) — ét rmsprop-skridt."""
     cases = [
         ((0.0, 0.0, 0.0, 0.0, _test_loss1, 0.1, 0.9, 1e-8),
          (0.316227763516838, -0.316227761016838, 1.5999999999999996, 0.3999999999999999)),
@@ -240,31 +240,31 @@ def test_rmsprop_step(func):
         ((5.0, -5.0, 0.0, 0.0, _test_loss2, 0.05, 0.9, 1e-8),
          (4.841886117116581, -4.841886118554081, 159.99999999999997, 1.024)),
     ]
-    name = "rmsprop_step"
+    name = "opg4_2"
     for inp, exp in cases:
         got = func(*inp)
         if not _eq(got, exp):
             a, b, sa, sb, loss_fn, lr, beta, eps = inp
             _fail(name, f"(a={a}, b={b}, sa={sa}, sb={sb}, lr={lr}, beta={beta}, eps={eps})  →  {got}  ≠  {exp}")
-            print("  Hint: find gradienten med .backward(), opdater s med jeres rmsprop_s_update, skalér så gradienten med sqrt(s)+eps.")
-            if _viz: _viz.feedback_method(loss_fn, (a, b), got[:2], exp[:2])
+            print("  Hint: find gradienten med .backward(), opdater s med jeres opg4_1, skalér så gradienten med sqrt(s)+eps.")
+            if _viz: _viz.feedback_metode(loss_fn, (a, b), got[:2], exp[:2])
             return
     _ok(name)
 
 
-def test_rmsprop_method(func):
-    """rmsprop_method(loss, start, lr=0.01, beta=0.9, eps=1e-8, n=99)."""
+def test_opg4_3(func):
+    """opg4_3(loss, start, lr=0.01, beta=0.9, eps=1e-8, n=99)."""
     cases = [
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, beta=0.9, n=5), (0.9510726932629295, -0.8002048397226278)),
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, beta=0.99, n=10), (1.9947359215628422, -1.0)),
         (_test_loss2, (5.0, -5.0), dict(lr=0.05, beta=0.9, n=10), (4.167485310558889, -4.149810262341654)),
     ]
-    _test_method("rmsprop_method", func, cases,
-                 hint="kald jeres egen rmsprop_step n gange i træk, og husk at bære s videre mellem kaldene.")
+    _test_method("opg4_3", func, cases,
+                 hint="kald jeres egen opg4_2 n gange i træk, og husk at bære s videre mellem kaldene.")
 
 
-def test_adam_step(func):
-    """adam_step(a, b, va, vb, sa, sb, t, loss, lr, beta1, beta2, eps)
+def test_opg5_1(func):
+    """opg5_1(a, b, va, vb, sa, sb, t, loss, lr, beta1, beta2, eps)
     -> (a, b, va, vb, sa, sb) — ét adam-skridt (momentum + rmsprop + bias-korrektion)."""
     cases = [
         ((0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1, _test_loss1, 0.1, 0.9, 0.999, 1e-8),
@@ -274,20 +274,20 @@ def test_adam_step(func):
          (4.9500000000125, -4.95000000015625, 3.999999999999999, -0.31999999999999995,
           1.6000000000000014, 0.010240000000000011)),
     ]
-    name = "adam_step"
+    name = "opg5_1"
     for inp, exp in cases:
         got = func(*inp)
         if not _eq(got, exp):
             a, b, va, vb, sa, sb, t, loss_fn, lr, beta1, beta2, eps = inp
             _fail(name, f"(a={a}, b={b}, va={va}, vb={vb}, sa={sa}, sb={sb}, t={t}, lr={lr}, beta1={beta1}, beta2={beta2}, eps={eps})  →  {got}  ≠  {exp}")
-            print("  Hint: genbrug momentum_v_update (v) og rmsprop_s_update (s), bias-korrigér så begge med t.")
-            if _viz: _viz.feedback_method(loss_fn, (a, b), got[:2], exp[:2])
+            print("  Hint: genbrug opg3_1 (v) og opg4_1 (s), bias-korrigér så begge med t.")
+            if _viz: _viz.feedback_metode(loss_fn, (a, b), got[:2], exp[:2])
             return
     _ok(name)
 
 
-def test_adam_method(func):
-    """adam_method(loss, start, lr=0.2, beta1=0.9, beta2=0.99, eps=1e-8, n=99).
+def test_opg5_2(func):
+    """opg5_2(loss, start, lr=0.2, beta1=0.9, beta2=0.99, eps=1e-8, n=99).
     Alle hyperparametre er eksplicitte i alle cases (ikke kun lr) — så testen forbliver
     korrekt uanset hvilke default-værdier funktionen selv sættes til."""
     cases = [
@@ -295,5 +295,5 @@ def test_adam_method(func):
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, beta1=0.9, beta2=0.99, eps=1e-8, n=10), (0.9769778845424322, -0.9267347635966232)),
         (_test_loss2, (5.0, -5.0), dict(lr=0.05, beta1=0.9, beta2=0.999, eps=1e-8, n=10), (4.502231122767305, -4.501059372865157)),
     ]
-    _test_method("adam_method", func, cases,
-                 hint="kald jeres egen adam_step n gange i træk — t starter ved 1 og skal stige for hvert kald.")
+    _test_method("opg5_2", func, cases,
+                 hint="kald jeres egen opg5_1 n gange i træk — t starter ved 1 og skal stige for hvert kald.")
