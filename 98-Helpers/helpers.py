@@ -854,7 +854,7 @@ def bar_comparison(names, runs, colors, title=None):
     return _Panel(draw, figsize=(4.5, 5))
 
 
-def loss_contour(loss_fn, a_range, b_range, resolution=60, point=None, path=None, gradient=None, gradient_color='white', colorbar=True, title=None, extra_paths=None, extra_arrows=None, equal_aspect=False, color_range=None, scale=None):
+def loss_contour(loss_fn, a_range, b_range, resolution=60, punkt=None, path=None, gradient=None, gradient_color='white', colorbar=True, title=None, extra_paths=None, extra_arrows=None, equal_aspect=False, color_range=None, scale=None):
     """
     Loss-flade som kontur-plot over (a, b). loss_fn skal være en funktion af (a, b) —
     typisk en lambda der wrapper en af jeres egne opg3/opg4-funktioner, fx:
@@ -961,10 +961,10 @@ def loss_contour(loss_fn, a_range, b_range, resolution=60, point=None, path=None
             ax.plot(a_vals, b_vals, color='white', linewidth=1.5, alpha=0.8)
             ax.plot([a_vals[-1]], [b_vals[-1]], 'o', color='tomato', markersize=10, zorder=5)
             sted = (a_vals[-1], b_vals[-1])
-        elif point is not None:
-            point_scaled = omskaler(point)
-            ax.plot([point_scaled[0]], [point_scaled[1]], 'o', color='tomato', markersize=10, zorder=5)
-            sted = point_scaled
+        elif punkt is not None:
+            punkt_skaleret = omskaler(punkt)
+            ax.plot([punkt_skaleret[0]], [punkt_skaleret[1]], 'o', color='tomato', markersize=10, zorder=5)
+            sted = punkt_skaleret
 
         def draw_pil(oprindelse, grad_a, grad_b, color, alpha=1.0, zorder=7):
             # tolerance i stedet for præcis 0-tjek: ved den optimale løsning er gradienten
@@ -990,6 +990,8 @@ def loss_contour(loss_fn, a_range, b_range, resolution=60, point=None, path=None
             for a_p, b_p, grad_a, grad_b, color, alpha in extra_arrows:
                 draw_pil(omskaler((a_p, b_p)), grad_a, grad_b, color, alpha=alpha, zorder=8)
     return _Panel(draw, figsize=(6, 5))
+
+loss_kontur = loss_contour   # dansk navn, brugt af regression-blokken
 
 
 def vector_fan(pair, sum_vector=None, title=None, original_color='gray', scaled_color='white', sum_color='orange', margin_fraction=0.3):
@@ -1054,14 +1056,16 @@ def vector_fan(pair, sum_vector=None, title=None, original_color='gray', scaled_
         ax.set_ylabel('Δb')
     return _Panel(draw, figsize=(5, 5))
 
+vektor_vifte = vector_fan   # dansk navn, brugt af regression-blokken
 
-def loss_3d(loss_fn, a_range, b_range, resolution=60, point=None):
+
+def loss_3d(loss_fn, a_range, b_range, resolution=60, punkt=None):
     """Samme loss-flade som loss_kontur, men som en 3D-flade. Se loss_kontur for detaljer om loss_fn."""
     def draw(ax):
         A, B, L = _loss_grid(loss_fn, a_range, b_range, resolution)
         _draw_3d(ax, A, B, L)
-        if point is not None:
-            a, b = point
+        if punkt is not None:
+            a, b = punkt
             ax.scatter([a], [b], [loss_fn(a, b)], color='tomato', s=80, zorder=10,
                        depthshade=False, edgecolor='black', linewidth=0.5)
     return _Panel(draw, figsize=(6, 5), projection='3d')
@@ -1142,6 +1146,8 @@ def linalg_solution(A, y, AtA, Aty, AtA_inv, w, fmt="{:.2f}"):
         ax.set_ylim(centers[-1] - heights[-1] / 2 - 0.4, centers[0] + heights[0] / 2 + 0.4)
     return _Panel(draw, figsize=(11, 6.5))
 
+linalg_losning = linalg_solution   # dansk navn, brugt af regression-blokken
+
 
 def loss_over_time(losses):
     """Viser loss pr. skridt som en kurve, med en markør ved det seneste skridt."""
@@ -1152,6 +1158,8 @@ def loss_over_time(losses):
         ax.set_ylabel('loss')
         ax.set_title('Squared loss over tid')
     return _Panel(draw, figsize=(6, 4.5))
+
+loss_over_tid = loss_over_time   # dansk navn, brugt af regression-blokken
 
 
 def animate(paneler_per_frame, interval=120, figsize=None, max_frames=25):
@@ -1250,6 +1258,8 @@ def feedback_curve(points, got_params, exp_params):
     plt.tight_layout()
     plt.show()
 
+feedback_kurve = feedback_curve   # dansk navn, brugt af regression-blokken
+
 
 def feedback_slope(f, x, got, exp, span=None):
     """
@@ -1284,6 +1294,8 @@ def feedback_slope(f, x, got, exp, span=None):
     ax.legend(fontsize=9)
     plt.tight_layout()
     plt.show()
+
+feedback_haeldning = feedback_slope   # dansk navn, brugt af regression-blokken
 
 
 def feedback_gradient_3d(f, x, y, got, exp, span=None, resolution=40):
@@ -1374,6 +1386,8 @@ def feedback_method(loss_fn, start, got, exp, margin=1.4, resolution=60):
     ax.legend(fontsize=9)
     plt.tight_layout()
     plt.show()
+
+feedback_metode = feedback_method   # dansk navn, brugt af regression-blokken
 
 
 # ── ReLU/torch-specifikke paneler ──────────────────────────────────────────
@@ -1503,6 +1517,7 @@ def _generate_line_points(n=100, a_true=1.2, b_true=1.5, x_range=(0, 10), noise=
 
 
 LINE_POINTS = _generate_line_points()
+LINJE_PUNKTER = LINE_POINTS   # dansk navn, brugt af regression-blokken
 
 
 def _line_loss(a, b, points=LINE_POINTS):
@@ -1624,6 +1639,7 @@ LANDSCAPES = [
     _build_landscape("plateau (2D)", _platau2d_loss, _platau2d_gradient, (-2.1, 1.1), (-2.1, 1.1)),
     _build_landscape("rosenbrock", _rosenbrock_loss, _rosenbrock_gradient, (-1.5, 1.5), (-1, 2), minimum=(1.0, 1.0)),
 ]
+LANDSKABER = LANDSCAPES   # dansk navn, brugt af regression-blokken
 
 
 # ── 4 udvalgte startpunkter pr. landskab ──────────────────────────────────
@@ -1808,3 +1824,5 @@ def evaluate_gd_method(methods, landscapes=LANDSCAPES, budget=100, resolution=30
             ))
 
     display_grid(paneler, cols=5, row_labels=row_labels)
+
+evaluer_gd_metode = evaluate_gd_method   # dansk navn, brugt af regression-blokken

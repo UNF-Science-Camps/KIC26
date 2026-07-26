@@ -18,15 +18,16 @@ løsning: brug et tilfældigt udpluk (en batch) i stedet — cirka samme gradien
 
 **slide**
 
-Opgaver i at løse denne type opgaver:
+`random.sample(punkter, k)` er givet: tager en liste og et tal k, vælger tilfældigt k af dem, giver det som output
+
+Opgave i at løse:
 - opg1_1
-- opg1_2
 
 **slide**
 
 [animation fra worksheet]
 
-prøv batch_størrelse = 1, 5, 20, 50, 100 — beskriv med egne ord hvad der ændrer sig (opg1_3, ingen facit, bare skriv jeres observation)
+prøv batch_størrelse = 1, 5, 20, 50, 100 — beskriv med egne ord hvad der ændrer sig (opg1_2, ingen facit, bare skriv jeres observation)
 
 ---
 
@@ -34,13 +35,13 @@ prøv batch_størrelse = 1, 5, 20, 50, 100 — beskriv med egne ord hvad der æn
 
 kan vi komme hurtigere/mere direkte til minimum, uden nødvendigvis at bruge flere punkter pr. skridt? det er det metoder som Adam prøver at gøre
 
-vi bygger 4 metoder, hver i to lag: selve opdateringen og løkken udenom, alle med samme form (loss, gradient, start, ...)
+vi bygger 4 metoder, hver i to lag: selve opdateringen og løkken udenom, alle med samme form (loss, start, ...) — gradienten finder de selv med autograd (.backward())
 
-constraints: loss/gradient må kaldes maks 100 gange tilsammen pr. kørsel — testes på 4 landskaber (linjefitting + 3 ukendte), hver fra 4 udvalgte startpunkter
+constraints: loss må kaldes maks 100 gange tilsammen pr. kørsel — testes på 4 landskaber (linjefitting + 3 ukendte), hver fra 4 udvalgte startpunkter
 
 **almindelig gradient descent (opg2)**
 
-samme gradient+skridt fra recap, bare omskrevet til (loss, gradient, start)-formen
+samme gradient+skridt fra recap, bare omskrevet til (loss, start)-formen
 
 **slide**
 

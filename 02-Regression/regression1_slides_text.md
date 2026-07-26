@@ -3,9 +3,9 @@
 Formål: slidene skal duplikere fortællingen fra notebooken (så eleverne ikke behøver læse md-cellerne selv), tilføje lidt ekstra stillads undervejs, og efter hver opgaveblok highlighte "det store billede" i fælles gennemgang. Struktur: præsentation → *arbejd på worksheet* → fælles gennemgang → gentag.
 
 Tre slide-typer i denne fil:
-- **Præsentation**: rigtigt indhold. Har **På slidet** (de sparsomme bullets der faktisk står på skærmen) og *Sagt* (den uddybende forklaring du siger højt, matcher notebookens fortælling).
+- **Præsentation**: rigtigt indhold — det der reelt skal stå på skærmen.
 - **Arbejd på worksheet**: ren transition-slide, ingen indhold — bare et fikspunkt der viser hvilke opgaver eleverne skal i gang med nu, og evt. hvor lang tid de har.
-- **Fælles gennemgang**: også en let slide — selve gennemgangen er bare at scrolle igennem facit-notebooken live og køre visualiseringerne. Slidet er kun en overskrift/markør; *Sagt* er noten om hvilket "big picture"-punkt du skal ramme mens du scroller.
+- **Fælles gennemgang**: også en let slide — selve gennemgangen er bare at scrolle igennem facit-notebooken live og køre visualiseringerne. Slidet er kun en overskrift/markør.
 
 ---
 
