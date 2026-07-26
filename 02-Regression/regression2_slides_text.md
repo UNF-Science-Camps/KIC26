@@ -18,15 +18,16 @@ løsning: brug et tilfældigt udpluk (en batch) i stedet — cirka samme gradien
 
 **slide**
 
-Opgaver i at løse denne type opgaver:
+`random.sample(punkter, k)` er givet: tager en liste og et tal k, vælger tilfældigt k af dem, giver det som output
+
+Opgave i at løse:
 - opg1_1
-- opg1_2
 
 **slide**
 
 [animation fra worksheet]
 
-prøv batch_størrelse = 1, 5, 20, 50, 100 — beskriv med egne ord hvad der ændrer sig (opg1_3, ingen facit, bare skriv jeres observation)
+prøv batch_størrelse = 1, 5, 20, 50, 100 — beskriv med egne ord hvad der ændrer sig (opg1_2, ingen facit, bare skriv jeres observation)
 
 ---
 

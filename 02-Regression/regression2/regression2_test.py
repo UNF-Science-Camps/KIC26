@@ -23,65 +23,35 @@ def _eq(got, exp, tol=1e-9):
     return abs(float(got) - float(exp)) < tol
 
 
-# ── opg 1 (minibatch: træk et tilfældigt udpluk af punkter) ─────────────────
-# NB: resultatet er tilfældigt, så vi tjekker egenskaber (rigtig størrelse, ingen
-# gentagelser, kun punkter der faktisk findes i datasættet) i stedet for eksakte værdier.
+# ── opg 1 (minibatch: byg træningsløkken oven på den givne random.sample-trækning) ──
 
 def test_opg1_1(func):
-    """træk k punkter, uden tilbagelægning, fra en liste af punkter"""
-    name = "opg1_1"
-    points = [(float(i), float(i) * 2) for i in range(20)]
-    for k in [1, 5, 20]:
-        for _ in range(25):  # mange forsøg — fanger fejl der kun rammer nogle gange (fx tilbagelægning)
-            try:
-                batch = func(points, k)
-            except Exception as e:
-                _fail(name, f"jeres funktion fejlede med k={k}: {e}")
-                return
-            if len(batch) != k:
-                _fail(name, f"forventede {k} punkter tilbage, fik {len(batch)} (k={k})")
-                print("  Hint: batchen skal have præcis k punkter — tjek at I bruger k, ikke et fast tal.")
-                return
-            if len(set(batch)) != len(batch):
-                _fail(name, f"batchen indeholder samme punkt flere gange (k={k}) — træk uden tilbagelægning")
-                print("  Hint: brug random.sample(punkter, k), ikke random.choice i et loop.")
-                return
-            if not set(batch).issubset(set(points)):
-                _fail(name, f"batchen indeholder punkter der slet ikke er i den oprindelige liste (k={k})")
-                print("  Hint: batchen skal bestå af punkter hentet fra `points` — ikke nye eller ændrede punkter.")
-                return
-    _ok(name)
-
-
-# ── opg 1 (fortsat): sæt opg1_1 sammen med den givne skridt-funktion fra recap ──
-
-def test_opg1_2(func):
-    """træningsloop: træk en ny batch (opg1_1) og tag ét skridt (skridt, fra recap), n gange i træk.
+    """træningsloop: træk en ny batch med random.sample og tag ét skridt (skridt, fra recap), n gange i træk.
     Testet med batch_størrelse = alle punkterne — så batchen er den samme uanset hvilken
     rækkefølge den trækkes i, og resultatet bliver deterministisk (almindelig, ikke-stokastisk
     gradient descent)."""
-    name = "opg1_2"
-    points = [(1, 2), (3, 4), (4, 3), (2.5, 2.5)]
+    name = "opg1_1"
+    punkter = [(1, 2), (3, 4), (4, 3), (2.5, 2.5)]
     cases = [
-        ((0.0, 0.0, points, 4, 0.05, 1),                        (0.80625, 0.28750000000000003)),
-        ((0.0, 0.0, points, 4, 0.05, 3),                        (0.890269775390625, 0.3558129882812501)),
-        ((0.0, 0.0, points, 4, 0.05, 10),                       (0.8515188432754992, 0.47661894571251673)),
+        ((0.0, 0.0, punkter, 4, 0.05, 1),                        (0.80625, 0.28750000000000003)),
+        ((0.0, 0.0, punkter, 4, 0.05, 3),                        (0.890269775390625, 0.3558129882812501)),
+        ((0.0, 0.0, punkter, 4, 0.05, 10),                       (0.8515188432754992, 0.47661894571251673)),
         ((1.0, 1.0, [(0, 0), (1, 2), (2, 4)], 3, 0.1, 5),        (1.3804628806584363, 0.844472098765432)),
     ]
     for inp, exp in cases:
         got = func(*inp)
         if not _eq(got, exp):
             _fail(name, f"{inp}  →  {got}  ≠  {exp}")
-            print("  Hint: kald jeres opg1_1 for at trække en ny batch, og den givne skridt-funktion fra recap — n gange i træk.")
+            print("  Hint: kald random.sample for at trække en ny batch, og den givne skridt-funktion fra recap — n gange i træk.")
             return
     _ok(name)
 
 
-def test_opg1_3(tekst, min_ord=15):
+def test_opg1_2(tekst, min_ord=15):
     """Ikke en facit-tjekker — der findes intet 'rigtigt' svar her. Tjekker kun at der
     rent faktisk er skrevet noget (nok ord til at være en rigtig beskrivelse, ikke bare
     et par stikord), så I ikke ved et uheld render forbi opgaven."""
-    name = "opg1_3"
+    name = "opg1_2"
     ord = tekst.split()
     if len(ord) < min_ord:
         _fail(name, f"kun {len(ord)} ord skrevet — beskriv med en rigtig sætning eller to (mindst {min_ord} ord)")
@@ -203,7 +173,7 @@ def test_opg3_2(func):
 
 
 def test_opg3_3(func):
-    """opg3_3(loss, start, lr=0.02, beta=0.9, n=99)."""
+    """opg3_3(loss, start, lr=0.02, beta=0.9, n=100)."""
     cases = [
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, beta=0.9, n=5), (0.5013670144, -0.2506835072)),
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, beta=0.5, n=10), (1.8669852288000002, -0.9334926144000001)),
@@ -253,7 +223,7 @@ def test_opg4_2(func):
 
 
 def test_opg4_3(func):
-    """opg4_3(loss, start, lr=0.01, beta=0.9, eps=1e-8, n=99)."""
+    """opg4_3(loss, start, lr=0.02, beta=0.5, eps=1e-8, n=100)."""
     cases = [
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, beta=0.9, n=5), (0.9510726932629295, -0.8002048397226278)),
         (_test_loss1, (0.0, 0.0), dict(lr=0.1, beta=0.99, n=10), (1.9947359215628422, -1.0)),
@@ -287,7 +257,7 @@ def test_opg5_1(func):
 
 
 def test_opg5_2(func):
-    """opg5_2(loss, start, lr=0.2, beta1=0.9, beta2=0.99, eps=1e-8, n=99).
+    """opg5_2(loss, start, lr=0.2, beta1=0.9, beta2=0.99, eps=1e-8, n=100).
     Alle hyperparametre er eksplicitte i alle cases (ikke kun lr) — så testen forbliver
     korrekt uanset hvilke default-værdier funktionen selv sættes til."""
     cases = [

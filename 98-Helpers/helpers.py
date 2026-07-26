@@ -854,7 +854,7 @@ def bar_comparison(names, runs, colors, title=None):
     return _Panel(draw, figsize=(4.5, 5))
 
 
-def loss_contour(loss_fn, a_range, b_range, resolution=60, point=None, path=None, gradient=None, gradient_color='white', colorbar=True, title=None, extra_paths=None, extra_arrows=None, equal_aspect=False, color_range=None, scale=None):
+def loss_contour(loss_fn, a_range, b_range, resolution=60, punkt=None, path=None, gradient=None, gradient_color='white', colorbar=True, title=None, extra_paths=None, extra_arrows=None, equal_aspect=False, color_range=None, scale=None):
     """
     Loss-flade som kontur-plot over (a, b). loss_fn skal være en funktion af (a, b) —
     typisk en lambda der wrapper en af jeres egne opg3/opg4-funktioner, fx:
@@ -961,10 +961,10 @@ def loss_contour(loss_fn, a_range, b_range, resolution=60, point=None, path=None
             ax.plot(a_vals, b_vals, color='white', linewidth=1.5, alpha=0.8)
             ax.plot([a_vals[-1]], [b_vals[-1]], 'o', color='tomato', markersize=10, zorder=5)
             sted = (a_vals[-1], b_vals[-1])
-        elif point is not None:
-            point_scaled = omskaler(point)
-            ax.plot([point_scaled[0]], [point_scaled[1]], 'o', color='tomato', markersize=10, zorder=5)
-            sted = point_scaled
+        elif punkt is not None:
+            punkt_skaleret = omskaler(punkt)
+            ax.plot([punkt_skaleret[0]], [punkt_skaleret[1]], 'o', color='tomato', markersize=10, zorder=5)
+            sted = punkt_skaleret
 
         def draw_pil(oprindelse, grad_a, grad_b, color, alpha=1.0, zorder=7):
             # tolerance i stedet for præcis 0-tjek: ved den optimale løsning er gradienten
@@ -1059,13 +1059,13 @@ def vector_fan(pair, sum_vector=None, title=None, original_color='gray', scaled_
 vektor_vifte = vector_fan   # dansk navn, brugt af regression-blokken
 
 
-def loss_3d(loss_fn, a_range, b_range, resolution=60, point=None):
+def loss_3d(loss_fn, a_range, b_range, resolution=60, punkt=None):
     """Samme loss-flade som loss_kontur, men som en 3D-flade. Se loss_kontur for detaljer om loss_fn."""
     def draw(ax):
         A, B, L = _loss_grid(loss_fn, a_range, b_range, resolution)
         _draw_3d(ax, A, B, L)
-        if point is not None:
-            a, b = point
+        if punkt is not None:
+            a, b = punkt
             ax.scatter([a], [b], [loss_fn(a, b)], color='tomato', s=80, zorder=10,
                        depthshade=False, edgecolor='black', linewidth=0.5)
     return _Panel(draw, figsize=(6, 5), projection='3d')

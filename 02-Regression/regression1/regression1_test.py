@@ -162,8 +162,8 @@ def test_opg3_1(func):
         got = func(*inp)
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
-            a, b, points = inp
-            if _viz: _viz.feedback_loss((a, b), points, got, exp)
+            a, b, punkter = inp
+            if _viz: _viz.feedback_loss((a, b), punkter, got, exp)
             return
     _ok(name)
 
@@ -182,8 +182,8 @@ def test_opg3_2(func):
         got = func(*inp)
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
-            a, b, points = inp
-            if _viz: _viz.feedback_loss((a, b), points, got, exp)
+            a, b, punkter = inp
+            if _viz: _viz.feedback_loss((a, b), punkter, got, exp)
             return
     _ok(name)
 
@@ -202,8 +202,8 @@ def test_opg3_3(func):
         got = func(*inp)
         if not _eq(got, exp):
             _fail(name, inp, got, exp)
-            a, b, c, points = inp
-            if _viz: _viz.feedback_loss((a, b, c), points, got, exp)
+            a, b, c, punkter = inp
+            if _viz: _viz.feedback_loss((a, b, c), punkter, got, exp)
             return
     _ok(name)
 
@@ -824,11 +824,11 @@ def test_opg9_2(func):
 def test_opg9_3(func):
     """Træningsloop for linjen: kør opg9_2 n gange i træk"""
     name = "opg9_3"
-    points = [(1,2),(3,4),(4,3),(2.5,2.5)]
+    punkter = [(1,2),(3,4),(4,3),(2.5,2.5)]
     cases = [
-        ((0.0, 0.0, points, 0.05, 1),                       (0.80625, 0.28750000000000003)),
-        ((0.0, 0.0, points, 0.05, 3),                       (0.890269775390625, 0.3558129882812501)),
-        ((0.0, 0.0, points, 0.05, 10),                      (0.8515188432754992, 0.47661894571251673)),
+        ((0.0, 0.0, punkter, 0.05, 1),                       (0.80625, 0.28750000000000003)),
+        ((0.0, 0.0, punkter, 0.05, 3),                       (0.890269775390625, 0.3558129882812501)),
+        ((0.0, 0.0, punkter, 0.05, 10),                      (0.8515188432754992, 0.47661894571251673)),
         ((1.0, 1.0, [(0,0),(1,2),(2,4)], 0.1, 5),            (1.3804628806584363, 0.844472098765432)),
     ]
     for inp, exp in cases:
@@ -878,10 +878,10 @@ def test_opg9_5(func):
 def test_opg9_6(func):
     """Træningsloop for parablen: kør opg9_5 n gange i træk"""
     name = "opg9_6"
-    points = [(1,2),(2,1),(3,0)]
+    punkter = [(1,2),(2,1),(3,0)]
     cases = [
-        ((0.0, 0.0, 0.0, points, 0.02, 5),   (0.00895658919506171, 0.11662914159670781, 0.13686546457283952)),
-        ((0.0, 0.0, 0.0, points, 0.02, 20),  (-0.12311594684208543, 0.3421750723226392, 0.449429350984422)),
+        ((0.0, 0.0, 0.0, punkter, 0.02, 5),   (0.00895658919506171, 0.11662914159670781, 0.13686546457283952)),
+        ((0.0, 0.0, 0.0, punkter, 0.02, 20),  (-0.12311594684208543, 0.3421750723226392, 0.449429350984422)),
     ]
     for inp, exp in cases:
         got = func(*inp)
