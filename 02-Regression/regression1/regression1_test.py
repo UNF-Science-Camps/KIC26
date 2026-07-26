@@ -145,6 +145,19 @@ def test_opg2_3(func):
             return
     _ok(name)
 
+
+def test_opg2_4(tekst, min_ord=15):
+    """Ikke en facit-tjekker — der findes intet 'rigtigt' svar her. Tjekker kun at der
+    rent faktisk er skrevet noget (nok ord til at være en rigtig beskrivelse, ikke bare
+    et par stikord), så I ikke ved et uheld render forbi opgaven."""
+    name = "opg2_4"
+    ord = tekst.split()
+    if len(ord) < min_ord:
+        print(f"{name}: kun {len(ord)} ord skrevet — beskriv med en rigtig sætning eller to (mindst {min_ord} ord)  ✗")
+        print("  Hint: ikke facit-tjekket — kør cellen ovenfor, og beskriv med egne ord hvor godt/skidt linjen rammer de punkter den ikke selv blev fittet ud fra.")
+        return
+    _ok(name)
+
 # ── opg 3 ─────────────────────────────────────────────────────────────────
 
 def test_opg3_1(func):
@@ -284,6 +297,19 @@ def test_opg4_3(func):
             _fail(name, inp, got, exp)
             print("  Hint: brug jeres opg3_4 (SSE) og divider med len(punkter).")
             return
+    _ok(name)
+
+
+def test_opg4_4(tekst, min_ord=15):
+    """Ikke en facit-tjekker — der findes intet 'rigtigt' svar her. Tjekker kun at der
+    rent faktisk er skrevet noget (nok ord til at være en rigtig beskrivelse, ikke bare
+    et par stikord), så I ikke ved et uheld render forbi opgaven."""
+    name = "opg4_4"
+    ord = tekst.split()
+    if len(ord) < min_ord:
+        print(f"{name}: kun {len(ord)} ord skrevet — beskriv med en rigtig sætning eller to (mindst {min_ord} ord)  ✗")
+        print("  Hint: ikke facit-tjekket — prøv forskellige a og b i cellen ovenfor, og beskriv med egne ord hvad I ser.")
+        return
     _ok(name)
 
 
@@ -721,6 +747,19 @@ def test_opg7_7(func):
     _ok(name)
 
 
+def test_opg7_8(tekst, min_ord=15):
+    """Ikke en facit-tjekker — der findes intet 'rigtigt' svar her. Tjekker kun at der
+    rent faktisk er skrevet noget (nok ord til at være en rigtig beskrivelse, ikke bare
+    et par stikord), så I ikke ved et uheld render forbi opgaven."""
+    name = "opg7_8"
+    ord = tekst.split()
+    if len(ord) < min_ord:
+        print(f"{name}: kun {len(ord)} ord skrevet — beskriv med en rigtig sætning eller to (mindst {min_ord} ord)  ✗")
+        print("  Hint: ikke facit-tjekket — prøv forskellige a og b i cellen ovenfor, og beskriv med egne ord hvad gradient-pilen viser.")
+        return
+    _ok(name)
+
+
 # ── opg 8 (gradient af MSE) ───────────────────────────────────────────────────
 
 def test_opg8_1(func):
@@ -889,4 +928,17 @@ def test_opg9_6(func):
             _fail(name, inp, got, exp)
             print("  Hint: kald jeres opg9_5 n gange i træk, og brug det opdaterede (a,b,c) i næste kald.")
             return
+    _ok(name)
+
+
+def test_opg9_7(tekst, min_ord=15):
+    """Ikke en facit-tjekker — der findes intet 'rigtigt' svar her. Tjekker kun at der
+    rent faktisk er skrevet noget (nok ord til at være en rigtig beskrivelse, ikke bare
+    et par stikord), så I ikke ved et uheld render forbi opgaven."""
+    name = "opg9_7"
+    ord = tekst.split()
+    if len(ord) < min_ord:
+        print(f"{name}: kun {len(ord)} ord skrevet — beskriv med en rigtig sætning eller to (mindst {min_ord} ord)  ✗")
+        print("  Hint: ikke facit-tjekket — prøv forskellige lr i animationen ovenfor (fx 0.02, 0.05, 0.1, 0.115, 0.12), og beskriv med egne ord hvad der sker når lr bliver for stor.")
+        return
     _ok(name)

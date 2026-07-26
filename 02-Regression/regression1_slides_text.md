@@ -43,11 +43,11 @@ big picture:
 
 **slide**
 
-ai model = funktion = f_{vægte}(input)
+$$ai model = funktion = f_{vægte}(input)$$
 eg. 
-f_{a}(x) = a\cdot x
-f_{a,b}(x) = a\cdot x + b
-f_{a,b,c}(x) = a\cdot x^2 +b \cdot x + c
+$$f_{a}(x) = a\cdot x$$
+$$f_{a,b}(x) = a\cdot x + b$$
+$$f_{a,b,c}(x) = a\cdot x^2 +b \cdot x + c$$
 
 
 vi ved nok hvordan vi løser ligninger med ubekendte
@@ -75,6 +75,7 @@ Opgaver i at løse denne type opgaver:
 - opg1_2
 - opg2_1
 - opg2_2
+- opg2_4
 
 ekstra:
 - opg1_3 # svær
@@ -83,7 +84,7 @@ ekstra:
 
 **flere punkter en antal parametre**
 
-Nu har vi flere punkter end vi har parametre, modellere generalisere ikke:
+Nu har vi flere punkter end vi har parametre, modellen generaliserer ikke perfekt:
 [figur fra worksheet] 
 
 **kvantificer fejl**
@@ -104,6 +105,8 @@ ekstra:
 - opg3_4
 - opg4_2
 - opg4_3
+
+opgave: beskriv med egne ord sammenhængen mellem modelfittet og loss-fladen, når I ændrer a/b i cellen med loss-landskabet (opg4_4, ingen facit)
 
 
 **slide**
@@ -185,12 +188,16 @@ Opgaver i at løse denne type opgaver:
 - opg7_1
 - opg7_2
 - opg7_3
+- opg7_8
+- opg8_1
 
 ekstra:
 - opg7_4
 - opg7_5
 - opg7_6
 - opg7_7
+- opg8_2
+- opg8_3
 
 **slide**
 
@@ -198,17 +205,6 @@ lad os se hvad gradienten faktisk betyder: en pil der peger i den retning loss v
 
 [figur fra worksheet]
 
-**slide**
-
-MSE = SSE/n, en konstant faktor går lige igennem gradienten:
-∇MSE = ∇SSE / n
-
-Opgaver i at løse denne type opgaver:
-- opg8_1
-
-ekstra:
-- opg8_2
-- opg8_3
 
 **gradient descent**
 
@@ -225,6 +221,7 @@ Opgaver i at løse denne type opgaver:
 - opg9_1
 - opg9_2
 - opg9_3
+- opg9_7
 
 ekstra:
 - opg9_4

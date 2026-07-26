@@ -1337,11 +1337,13 @@ def feedback_gradient_3d(f, x, y, got, exp, span=None, resolution=40):
     plt.show()
 
 
-def feedback_loss(model_params, points, got_loss, exp_loss):
+def feedback_loss(model_params, points, got_loss, exp_loss, label="SSE"):
     """
     Feedback for opg3/opg4: viser kurven, punkterne og et kvadrat per fejl.
     Kvadratets areal = fejlens bidrag til squared loss.
     Bruges ved fejl i loss-beregnings-opgaver. model_params er (a,b) eller (a,b,c).
+    label: hvad got_loss/exp_loss rent faktisk er — "SSE" som default, men giv
+    label="MSE" hvis denne bruges til en MSE-opgave (fx opg4), så titlen matcher.
     """
     xs = np.array([p[0] for p in points], dtype=float)
     ys = np.array([p[1] for p in points], dtype=float)
@@ -1349,8 +1351,8 @@ def feedback_loss(model_params, points, got_loss, exp_loss):
     fig, ax = plt.subplots(figsize=(8, 5))
     _draw_kvadrater_panel(ax, xs, ys, model_params)
     ax.set_title(
-        f'Kvadraternes arealer summer til: {got_loss:.4f}\n'
-        f'Korrekt loss = {exp_loss:.4f}'
+        f'Din {label} = {got_loss:.4f}\n'
+        f'Facit {label} = {exp_loss:.4f}'
     )
     ax.legend(fontsize=9)
     plt.tight_layout()
