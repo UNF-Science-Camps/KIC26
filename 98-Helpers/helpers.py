@@ -338,7 +338,6 @@ def generate_markov_chain(states):
             # I dette tilfælde, siger vi derfor blot at dens næste ord er sig selv, således at vi ikke har en slags 'blind vej' i vores endelige markov kæde.
             if word not in markov_chain:
                 markov_chain[word] = [1,{}]
-                #markov_chain[word] = [1,{}]
                 markov_chain[word][1][word] = 1
                 markov_chain[word][1][next_word] = 1
             break
@@ -423,7 +422,7 @@ def calculate_single_state_chance(temperature, total_occurances, possible_next_s
         return t/q
      
 
-def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, temperature = 1):
+def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, temperature = 1, print_concurrently = False):
     """
     Genererer tekst ud fra den givne markov kæde. 
     Bemærk at hvis starting_state er None, bliver en tilfældig starting state valgt fra markov kæden.
@@ -438,9 +437,9 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
 
     # Tjek vores input
     if starting_state not in markov_chain.keys():
-        raise ValueError("Start staten findes ikke som et state i markov kæden")
+        raise ValueError("Start staten findes ikke som et state i markov kæden (\"",starting_state,"\")")
     if (amount_to_generate <= 0):
-        raise ValueError("Du kan ikke generere nul eller en negativ mængde tekst")
+        raise ValueError("Du kan ikke generere nul eller en negativ mængde tekst (\"amount_to_generate <= 0\")")
     if (temperature < 0 or temperature > 2):
         raise ValueError("Temperatur skal være mellem 0 og 2")
     
@@ -450,16 +449,18 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
     
     # Denne liste vil indeholde vores genererede tekst. Den starter derfor med at indeholde vores startord
     generated_text = starting_state.split(" ")
-    
+    if print_concurrently: 
+        print(starting_state)
+
     # Vi bruger denne til at holde styr på hvad vi gerne vil generere det næste ud fra
     prev_state = starting_state
-    
+
     # Generer tekst
     for i in range(amount_to_generate):
         # Vi tjekker lige om vi forsøger at bevæge os fra en ikke-eksisterende state. 
         # Dette kan ske hvis f.eks. man har 2 token staten "hej med" som er absorberende, dermed generes teksten "hej med med", men "med med" er ikke en state.
         if (prev_state not in markov_chain.keys()):
-            print("Markov kæden termineres, da den forsøger at bevæge sig fra en state der ikke eksisterer (",prev_state,")")
+            print("Markov kæden termineres, da den forsøger at bevæge sig fra en state der ikke eksisterer (\"",prev_state,"\")")
             break
         
         # Vi får først info om vores forrige state.
@@ -492,6 +493,8 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
 
             # Vi har hermed vores næste state.
             generated_text.append(next_state_text)
+            if print_concurrently: 
+                print(next_state_text)
             
             # Opdater det nuværende state til at være de sidste ord i vores genererede tekst
             prev_state = " ".join(generated_text[-amount_of_words:])
