@@ -695,13 +695,17 @@ def _draw_3d(ax, A, B, L):
     ax.set_title('Loss (3D-flade)')
 
 
-def _draw_kvadrater_panel(ax, xs, ys, params, x_min=None, x_max=None, y_min=None, y_max=None, label_prefix="model"):
+def _draw_kvadrater_panel(ax, xs, ys, params, x_min=None, x_max=None, y_min=None, y_max=None, label_prefix="model",
+                           highlight=None, highlight_label="udvalgt", rest_label="punkter"):
     """
     Tegner datapunkter, modellen (linje hvis params=(a,b), parabel hvis params=(a,b,c)),
     og et kvadrat per fejl. Kvadratets areal = fejlens bidrag til squared loss.
     Returnerer fejlene (y_pred - y) så den kaldende kode kan udregne loss.
     Angiv x_min/x_max/y_min/y_max for at låse aksernes skala på tværs af flere kald
     (ellers deformeres kvadraterne visuelt når fejlens størrelse ændrer sig).
+    Angiv highlight (liste af indices ind i xs/ys) for at fremhæve en delmængde af
+    punkterne (fx dem der er brugt til at fitte modellen, eller den aktuelle SGD-batch)
+    med en anden farve — resten dæmpes i stedet for at forsvinde helt.
     """
     y_preds = _eval_curve(params, xs)
     errors  = y_preds - ys
@@ -716,20 +720,34 @@ def _draw_kvadrater_panel(ax, xs, ys, params, x_min=None, x_max=None, y_min=None
     ax.plot(x_line, _eval_curve(params, x_line), color='royalblue', linewidth=2,
             label=_curve_label(params, prefix=label_prefix), zorder=2)
 
-    for x, y, y_pred, e in zip(xs, ys, y_preds, errors):
+    is_highlighted = np.zeros(len(xs), dtype=bool)
+    if highlight is not None:
+        is_highlighted[list(highlight)] = True
+
+    for x, y, y_pred, e, on in zip(xs, ys, y_preds, errors, is_highlighted):
+        dim   = (highlight is not None) and not on
+        alpha = 0.10 if dim else 0.25
         side  = abs(float(e))
         y_bot = min(float(y), float(y_pred))
         if side > 1e-10:
             ax.add_patch(Rectangle(
                 (x, y_bot), side, side,
-                linewidth=1, edgecolor='tomato', facecolor='tomato', alpha=0.25,
+                linewidth=1, edgecolor='tomato', facecolor='tomato', alpha=alpha,
                 zorder=3,
             ))
-            ax.text(x + side / 2, y_bot + side / 2, f'{e**2:.2f}',
-                    ha='center', va='center', fontsize=8, color='darkred', zorder=5, clip_on=True)
-        ax.plot([x, x], [y, y_pred], color='tomato', linewidth=1.5, zorder=4)
+            if not dim:
+                ax.text(x + side / 2, y_bot + side / 2, f'{e**2:.2f}',
+                        ha='center', va='center', fontsize=8, color='darkred', zorder=5, clip_on=True)
+        ax.plot([x, x], [y, y_pred], color='tomato', linewidth=1.5 if not dim else 0.8,
+                alpha=1.0 if not dim else 0.4, zorder=4)
 
-    ax.scatter(xs, ys, color='black', s=60, zorder=6, label='punkter')
+    if highlight is None:
+        ax.scatter(xs, ys, color='black', s=60, zorder=6, label=rest_label)
+    else:
+        ax.scatter(xs[~is_highlighted], ys[~is_highlighted], color='lightgray', edgecolor='gray',
+                   s=40, zorder=6, label=rest_label)
+        ax.scatter(xs[is_highlighted], ys[is_highlighted], color='darkorange', edgecolor='black',
+                   linewidth=0.5, s=70, zorder=7, label=highlight_label)
     ax.set_xlim(x_min, x_max)
     if y_min is None or y_max is None:
         y_all = np.concatenate([ys, y_preds])
@@ -1071,7 +1089,7 @@ def loss_3d(loss_fn, a_range, b_range, resolution=60, punkt=None):
     return _Panel(draw, figsize=(6, 5), projection='3d')
 
 
-def modelfit(*args, x_range=None, y_range=None):
+def modelfit(*args, x_range=None, y_range=None, highlight=None, highlight_label="udvalgt", rest_label="punkter"):
     """
     Vis modellen sammen med punkterne og fejl-kvadraterne — linjen y=a·x+b hvis I giver
     2 parametre, parablen y=a·x²+b·x+c hvis I giver 3. Kald fx som:
@@ -1079,6 +1097,10 @@ def modelfit(*args, x_range=None, y_range=None):
         sesy_viz.modelfit(a, b, c, punkter)
     Angiv x_range/y_range for at låse aksernes skala på tværs af flere kald med
     forskellige parametre — ellers deformeres kvadraterne når fejlens størrelse ændrer sig.
+    Angiv highlight som en liste af indices ind i punkter for at fremhæve en delmængde
+    (fx de punkter modellen faktisk er fittet ud fra, eller den aktuelle SGD-batch) —
+    resten af punkterne dæmpes i stedet for at blive vist som ligeværdige. highlight_label/
+    rest_label sætter teksten i legenden for hhv. den fremhævede og den dæmpede gruppe.
     Kør alene for at se plottet, eller giv den til display() sammen med andre paneler.
     """
     *params, points = args
@@ -1090,7 +1112,8 @@ def modelfit(*args, x_range=None, y_range=None):
     y_min, y_max = y_range if y_range else (None, None)
 
     def draw(ax):
-        errors = _draw_kvadrater_panel(ax, xs, ys, params, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max)
+        errors = _draw_kvadrater_panel(ax, xs, ys, params, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max,
+                                        highlight=highlight, highlight_label=highlight_label, rest_label=rest_label)
         ax.set_aspect('equal', adjustable='box')
         loss = float(np.sum(errors**2))
         label = '  '.join(f'{name}={v:.2f}' for name, v in zip('abc', params))
