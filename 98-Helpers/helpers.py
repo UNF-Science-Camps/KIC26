@@ -473,6 +473,7 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
 
         # Variablen er hvad der skal ganges med, så det er normaliset på en måde for, at sikre at det altid bliver summed up til 1 i slutning
         multiply_to_norm = 1
+        next_token = ""
         
         # Vi gennemgår hvert næste mulige state med et indeks, idet vi bruger seperate lister til chancerne og selve states.
         for next_state_index, next_state_text in enumerate(next_possible_states.keys()):
@@ -486,21 +487,22 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
                 multiply_to_norm = 1/(sum(next_possible_state_chances[next_state_index:])*(1/(amount_left)))
                 continue
             # Vi har hermed vores næste state.
-            
-            # Vi tjekker lige om vi forsøger at bevæge næst til en ikke-eksisterende state. 
-            # Dette kan ske hvis f.eks. man har 2 token staten "hej med" som er absorberende, dermed generes teksten "hej med med", men "med med" er ikke en state.
-            if amount_of_words>1 and " ".join(generated_text[-amount_of_words+1:])+next_state_text not in markov_chain.keys():
-                print(f"Markov kæden termineres, da den forsøger at bevæge sig fra en state der ikke eksisterer ('{prev_state}')")
-                break
-
-            # Vi tilføjer vores nye token
-            generated_text.append(next_state_text)
-            if print_concurrently: 
-                print(next_state_text)
-            
-            # Opdater det nuværende state til at være de sidste ord i vores genererede tekst
-            prev_state = " ".join(generated_text[-amount_of_words:])
+            next_token = next_state_text
             break
+            
+        # Vi tjekker lige om vi forsøger at bevæge næst til en ikke-eksisterende state. 
+        # Dette kan ske hvis f.eks. man har 2 token staten "hej med" som er absorberende, dermed generes teksten "hej med med", men "med med" er ikke en state.
+        if amount_of_words>1 and " ".join(generated_text[-amount_of_words+1:])+next_token not in markov_chain.keys():
+            print(f"Markov kæden termineres, da den forsøger at bevæge sig fra en state der ikke eksisterer ('{prev_state}')")
+            break
+
+        # Vi tilføjer vores nye token
+        generated_text.append(next_token)
+        if print_concurrently: 
+            print(next_token)
+        
+        # Opdater det nuværende state til at være de sidste ord i vores genererede tekst
+        prev_state = " ".join(generated_text[-amount_of_words:])
 
     # Vores genererede tekst består af individuelle ord. Vi samler dem for at få et sammenhængende stykke tekst
     return " ".join(generated_text)
