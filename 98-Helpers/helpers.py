@@ -338,7 +338,8 @@ def generate_markov_chain(states):
             # I dette tilfælde, siger vi derfor blot at dens næste ord er sig selv, således at vi ikke har en slags 'blind vej' i vores endelige markov kæde.
             if word not in markov_chain:
                 if " " in word:
-                    word=word.split(" ")[-1]
+                    word = word.split(" ")[-1]
+                    print(word)
                 markov_chain[word] = [1,{}]
                 markov_chain[word][1][word] = 1
                 markov_chain[word][1][next_word] = 1
@@ -462,7 +463,7 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
         # Vi tjekker lige om vi forsøger at bevæge os fra en ikke-eksisterende state. 
         # Dette kan ske hvis f.eks. man har 2 token staten "hej med" som er absorberende, dermed generes teksten "hej med med", men "med med" er ikke en state.
         if (prev_state not in markov_chain.keys()):
-            print("Markov kæden termineres, da den forsøger at bevæge sig fra en state der ikke eksisterer (\"",prev_state,"\")")
+            print("Markov kæden termineres, da den forsøger at bevæge sig fra en state der ikke eksisterer ('prev_state')")
             break
         
         # Vi får først info om vores forrige state.
