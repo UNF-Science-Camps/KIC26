@@ -492,7 +492,8 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
             
         # Vi tjekker lige om vi forsøger at bevæge næst til en ikke-eksisterende state. 
         # Dette kan ske hvis f.eks. man har 2 token staten "hej med" som er absorberende, dermed generes teksten "hej med med", men "med med" er ikke en state.
-        if amount_of_words>1 and " ".join(generated_text[-amount_of_words+1:])+next_token not in markov_chain.keys():
+        if amount_of_words>1 and " ".join(generated_text[-amount_of_words+1:])+" "+next_token not in markov_chain.keys():
+            print(" ".join(generated_text[-amount_of_words+1:])+" "+next_token)
             print(f"Markov kæden termineres, da den forsøger at bevæge sig fra til en state der ikke eksisterer ('{prev_state}')")
             break
 
