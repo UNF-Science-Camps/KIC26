@@ -458,12 +458,6 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
 
     # Generer tekst
     for i in range(amount_to_generate):
-        # Vi tjekker lige om vi forsøger at bevæge os fra en ikke-eksisterende state. 
-        # Dette kan ske hvis f.eks. man har 2 token staten "hej med" som er absorberende, dermed generes teksten "hej med med", men "med med" er ikke en state.
-        if (prev_state not in markov_chain.keys()):
-            print("Markov kæden termineres, da den forsøger at bevæge sig fra en state der ikke eksisterer ('prev_state')")
-            break
-        
         # Vi får først info om vores forrige state.
         total_occurances = markov_chain[prev_state][0]
         next_possible_states = markov_chain[prev_state][1]
@@ -491,8 +485,15 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
                 # dette bliver til hvad man skal gange alle værdierne med, så deres sum giver mængden der er tilbage for at sikre at der altid vil 1.
                 multiply_to_norm = 1/(sum(next_possible_state_chances[next_state_index:])*(1/(amount_left)))
                 continue
-
             # Vi har hermed vores næste state.
+            
+            # Vi tjekker lige om vi forsøger at bevæge næst til en ikke-eksisterende state. 
+            # Dette kan ske hvis f.eks. man har 2 token staten "hej med" som er absorberende, dermed generes teksten "hej med med", men "med med" er ikke en state.
+            if amount_of_words>1 and " ".join(generated_text[-amount_of_words+1:])+next_state_text not in markov_chain.keys():
+                print(f"Markov kæden termineres, da den forsøger at bevæge sig fra en state der ikke eksisterer ('{prev_state}')")
+                break
+
+            # Vi tilføjer vores nye token
             generated_text.append(next_state_text)
             if print_concurrently: 
                 print(next_state_text)
