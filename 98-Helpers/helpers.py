@@ -337,6 +337,8 @@ def generate_markov_chain(states):
             # Hvis det allersidste ord ikke findes andre steder end i slutningen, kan det som state i markov kæden ikke føre til andre states.
             # I dette tilfælde, siger vi derfor blot at dens næste ord er sig selv, således at vi ikke har en slags 'blind vej' i vores endelige markov kæde.
             if word not in markov_chain:
+                print("word")
+                print(word)
                 if " " in word:
                     word = word.split(" ")[-1]
                     print(word)
