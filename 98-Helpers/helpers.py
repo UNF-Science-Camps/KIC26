@@ -328,6 +328,8 @@ def generate_markov_chain(states):
     """
     Genererer en dictionary som angiver mængden af forekomster og naboliggende ord (og deres hyppigheder) i vores datasæt som en 
     """
+    if (len(states)==1):
+        raise ValueError("Der er ingen grund til at skabe en markov kæde som kun har en enkelt state i sig, din bandit")
     for index, word in enumerate(states):
         # Positionen til det næste ord i vores liste
         nabo_index = index + 1
@@ -337,13 +339,7 @@ def generate_markov_chain(states):
             # Hvis det allersidste ord ikke findes andre steder end i slutningen, kan det som state i markov kæden ikke føre til andre states.
             # I dette tilfælde, siger vi derfor blot at dens næste ord er sig selv, således at vi ikke har en slags 'blind vej' i vores endelige markov kæde.
             if word not in markov_chain:
-                print("word")
-                print(word)
-                if " " in word:
-                    word = word.split(" ")[-1]
-                    print(word)
                 markov_chain[word] = [1,{}]
-                markov_chain[word][1][word] = 1
                 markov_chain[word][1][next_word] = 1
             break
             
