@@ -480,6 +480,7 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
             
             # Tjek om vores tilfældige threshold er nået- hvis ja, er det nuværende element det tilfældigt valgte. Ellers, fortsæt gennem vores muligheder.
             sum_chance += next_possible_state_chances[next_state_index]*multiply_to_norm
+
             if sum_chance <= random_threshold:
                 # Opdater mængden der er left baseret på sum_chancen
                 amount_left = 1 - sum_chance 
@@ -491,8 +492,8 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
         # Vi tjekker lige om vi forsøger at bevæge næst til en ikke-eksisterende state. 
         # Dette kan ske hvis f.eks. man har 2 token staten "hej med" som er absorberende, dermed generes teksten "hej med med", men "med med" er ikke en state.
         #if amount_of_words>1 and " ".join(generated_text[-amount_of_words+1:])+" "+next_token not in markov_chain.keys():
-        if amount_of_words>1 and ((prev_state.split(" "))[1:]+" "+next_token) not in markov_chain.keys():
-            print(f"Markov kæden termineres, da den forsøger at bevæge sig til en state der ikke eksisterer ('{prev_state}')")
+        if amount_of_words>1 and ((" ".join((prev_state.split(" "))[1:]))+" "+next_token) not in markov_chain.keys():
+            print(f"Markov kæden termineres, da den forsøger at bevæge sig til en state der ikke eksisterer ('{((" ".join((prev_state.split(" "))[1:]))+" "+next_token)}')")
             break
 
         # Vi tilføjer vores nye token   
