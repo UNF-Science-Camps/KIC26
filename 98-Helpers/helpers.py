@@ -480,7 +480,7 @@ def generate_text(markov_chain, amount_to_generate = 10, starting_state = None, 
             
             # Tjek om vores tilfældige threshold er nået- hvis ja, er det nuværende element det tilfældigt valgte. Ellers, fortsæt gennem vores muligheder.
             sum_chance += next_possible_state_chances[next_state_index]*multiply_to_norm
-            if sum_chance > random_threshold:
+            if sum_chance <= random_threshold:
                 # Opdater mængden der er left baseret på sum_chancen
                 amount_left = 1 - sum_chance 
                 # dette bliver til hvad man skal gange alle værdierne med, så deres sum giver mængden der er tilbage for at sikre at der altid vil 1.
